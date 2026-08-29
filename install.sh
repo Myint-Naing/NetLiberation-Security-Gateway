@@ -171,6 +171,9 @@ if [ "$(pwd)" != "/opt/netliberation" ]; then
   cp -r backend frontend docs tests conftest.py /opt/netliberation/ 2>/dev/null || true
 fi
 
+# Ensure world-read/write/execute permissions so non-root users can run pytest in /opt/netliberation
+chmod -R a+rwX /opt/netliberation
+
 # Enable Systemd Service & Trigger Mode A Wi-Fi AP Startup
 systemctl daemon-reload
 systemctl enable netliberation.service

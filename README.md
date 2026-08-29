@@ -151,6 +151,8 @@ Run the automated test suite using `pytest`:
 # Run all unit, stress, and security tests
 cd /opt/netliberation
 pytest tests/ -v
+# or with sudo
+sudo pytest tests/ -v
 ```
 
 ### Test Coverage
