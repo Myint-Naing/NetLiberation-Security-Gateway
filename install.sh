@@ -12,6 +12,16 @@ echo -e "${BLUE}================================================================
 echo -e "${BLUE}       NetLiberation Security Gateway - Installation Engine     ${NC}"
 echo -e "${BLUE}================================================================${NC}"
 
+# --- 0. Command Line Option Parsing ---
+if [ "$1" == "--uninstall" ] || [ "$1" == "-u" ]; then
+  if [ -f "./uninstall.sh" ]; then
+    exec bash ./uninstall.sh
+  else
+    echo -e "${RED}[ERROR] uninstall.sh script not found in current directory.${NC}"
+    exit 1
+  fi
+fi
+
 # --- 1. Root Execution Privilege Verification ---
 if [ "$EUID" -ne 0 ]; then
   echo -e "${RED}[ERROR] Installation must be executed as root. Please use 'sudo bash install.sh'${NC}"

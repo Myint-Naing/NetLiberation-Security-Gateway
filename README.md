@@ -77,6 +77,16 @@ Execute the interactive automated installation script on a fresh **Debian Linux*
 sudo bash install.sh
 ```
 
+### Uninstallation
+
+To remove NetLiberation Security Gateway and restore system defaults:
+
+```bash
+sudo bash uninstall.sh
+# or
+sudo bash install.sh --uninstall
+```
+
 ### Pre-Flight Verification Routine
 The `install.sh` script executes strict pre-flight checks before installing packages or modifying network configurations:
 1. **Root Privileges:** Ensures root execution.

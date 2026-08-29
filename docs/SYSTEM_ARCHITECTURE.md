@@ -76,3 +76,23 @@ When VPN Master Switch is turned **OFF**:
 - Centralized system and operation logging daemon writing to `/var/log/netliberation/app.log`.
 - Log levels: `INFO`, `WARNING`, `ERROR`.
 - **Retention Cron**: Automated `logrotate` job daily purges logs older than 7 days to preserve SBC flash storage.
+
+---
+
+## 6. Installation & Uninstallation Engine
+
+### `install.sh` Workflow
+1. **Command Line Parsing**: Checks for `--uninstall` / `-u` flags (delegates to `uninstall.sh`).
+2. **Root Verification**: Verifies root execution privileges.
+3. **Hardware Diagnostics**: Checks RAM (>=1.5GB threshold warning) and thermal sensors.
+4. **Port Conflict Check**: Detects occupied ports (53, 80, 67, 68) and prompts for service cleanup.
+5. **Dependency Installation**: Installs hostapd, dnsmasq, iptables, WireGuard, Python packages, etc.
+6. **Service Deployment**: Deploys `netliberation.service` systemd unit and copies backend/frontend code to `/opt/netliberation`.
+7. **Cron Setup**: Registers 7-day log purge & VPN key renewal daily cron jobs.
+
+### `uninstall.sh` Workflow
+1. **Service Teardown**: Stops and disables `netliberation.service`, removes systemd unit file.
+2. **Cron Removal**: Cleans up auto-maintenance and key renewal crontab entries.
+3. **Firewall Reset**: Flushes custom iptables NAT and forwarding rules.
+4. **Daemon Reset**: Stops hostapd and dnsmasq instances.
+5. **File Purge**: Removes `/opt/netliberation`, `/etc/netliberation`, and `/var/log/netliberation`.
