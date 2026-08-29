@@ -109,17 +109,23 @@ apt-get install -y -qq \
 # Attempt optional installation of legacy wireless-tools if available on distribution
 apt-get install -y -qq wireless-tools >/dev/null 2>&1 || true
 
-# Install python requirements
-python3 -m pip install --quiet --break-system-packages \
-  fastapi uvicorn pydantic psutil requests beautifulsoup4 pyjwt passlib || true
-
-# --- 4. Service Deployment & Directories Setup ---
-echo -e "\n${YELLOW}[SETUP] Deploying Gateway Core Services & Services Systemd Units...${NC}"
+# --- 4. Virtual Environment & Service Deployment Setup ---
+echo -e "\n${YELLOW}[SETUP] Deploying Gateway Core Services & Python Virtual Environment...${NC}"
 
 mkdir -p /etc/netliberation
 mkdir -p /var/log/netliberation
 mkdir -p /etc/hostapd
 mkdir -p /etc/dnsmasq.d
+mkdir -p /opt/netliberation
+
+# Create Python Virtual Environment to eliminate root pip warnings & package conflicts
+if [ ! -d "/opt/netliberation/venv" ]; then
+  python3 -m venv /opt/netliberation/venv
+fi
+
+# Install python requirements in dedicated venv
+/opt/netliberation/venv/bin/pip install --quiet \
+  fastapi uvicorn pydantic psutil requests beautifulsoup4 pyjwt passlib
 
 # Systemd Service File Creation
 cat << 'EOF' > /etc/systemd/system/netliberation.service
@@ -131,7 +137,7 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=/opt/netliberation
-ExecStart=/usr/bin/python3 -m uvicorn backend.app:app --host 0.0.0.0 --port 80
+ExecStart=/opt/netliberation/venv/bin/uvicorn backend.app:app --host 0.0.0.0 --port 80
 Restart=always
 RestartSec=5
 
@@ -154,7 +160,7 @@ systemctl restart netliberation.service || true
 echo -e "\n${YELLOW}[CRON] Setting up 7-Day Log Retention & Auto-Renewal Timers...${NC}"
 
 # Daily Cron Job for 7-Day Log Purge & Cloudflare WARP/Outline Renewal
-CRON_JOB="0 3 * * * python3 -c 'from backend.logging_service import purge_old_logs; purge_old_logs(7); from backend.warp import check_and_renew_warp_key; check_and_renew_warp_key()' >/dev/null 2>&1"
+CRON_JOB="0 3 * * * /opt/netliberation/venv/bin/python -c 'from backend.logging_service import purge_old_logs; purge_old_logs(7); from backend.warp import check_and_renew_warp_key; check_and_renew_warp_key()' >/dev/null 2>&1"
 (crontab -l 2>/dev/null | grep -v "purge_old_logs"; echo "$CRON_JOB") | crontab -
 
 echo -e "\n${GREEN}================================================================${NC}"
