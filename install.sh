@@ -67,18 +67,23 @@ if [ "$ETH_COUNT" -lt 1 ] || [ "$WIFI_COUNT" -lt 1 ]; then
   fi
 fi
 
+# Global conflict tracker for reboot prompt
+CONFLICTS_RESOLVED=0
+
 # Service & Port Conflict Resolution
 check_port_conflict() {
   local port=$1
   local service_name=$2
   if lsof -i :"$port" >/dev/null 2>&1 || netstat -tuln 2>/dev/null | grep -q ":$port "; then
     echo -e "${YELLOW}[CONFLICT] Port $port is currently in use (possibly by $service_name).${NC}"
-    read -p "Automatically stop/disable conflicting service for port $port? (Y/n): " conflict_choice
+    read -p "Automatically stop, disable, and purge conflicting packages for port $port? (Y/n): " conflict_choice
     if [[ "$conflict_choice" != "n" && "$conflict_choice" != "N" ]]; then
-      echo -e "Stopping conflicting services..."
+      echo -e "Stopping conflicting services and purging conflicting packages..."
       systemctl stop systemd-resolved dnsmasq apache2 nginx 2>/dev/null || true
-      systemctl disable systemd-resolved 2>/dev/null || true
+      systemctl disable systemd-resolved dnsmasq apache2 nginx 2>/dev/null || true
+      apt-get purge -y apache2 nginx 2>/dev/null || true
       echo -e "${GREEN}Port $port freed successfully.${NC}"
+      CONFLICTS_RESOLVED=1
     else
       echo -e "${RED}Port conflict not resolved. Installation aborted.${NC}"
       exit 1
@@ -99,7 +104,10 @@ apt-get install -y -qq \
   python3 python3-pip python3-venv \
   hostapd dnsmasq iptables nftables \
   wireguard openvpn shadowsocks-libev xl2tpd \
-  iw wireless-tools net-tools lsof speedtest-cli curl >/dev/null
+  iw net-tools lsof speedtest-cli curl >/dev/null
+
+# Attempt optional installation of legacy wireless-tools if available on distribution
+apt-get install -y -qq wireless-tools >/dev/null 2>&1 || true
 
 # Install python requirements
 python3 -m pip install --quiet --break-system-packages \
@@ -155,3 +163,12 @@ echo -e "${GREEN}===============================================================
 echo -e "Access Web Management Panel at: ${BLUE}http://192.168.200.254${NC} or ${BLUE}http://localhost${NC}"
 echo -e "Default Credentials: Username: ${GREEN}admin${NC} | Password: ${GREEN}admin${NC}"
 echo -e "Default Wi-Fi AP SSID: ${GREEN}NetLiberation${NC} | Passphrase: ${GREEN}Freedom4all${NC}\n"
+
+if [ "$CONFLICTS_RESOLVED" -eq 1 ]; then
+  echo -e "${YELLOW}[REBOOT RECOMMENDED] Services/ports were purged or modified during installation.${NC}"
+  read -p "Would you like to reboot the system now? (y/N): " reboot_choice
+  if [[ "$reboot_choice" == "y" || "$reboot_choice" == "Y" ]]; then
+    echo -e "${GREEN}Rebooting system...${NC}"
+    reboot
+  fi
+fi
