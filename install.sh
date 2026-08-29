@@ -123,6 +123,16 @@ mkdir -p /etc/netliberation
 mkdir -p /var/log/netliberation
 mkdir -p /etc/hostapd
 mkdir -p /etc/dnsmasq.d
+
+# Unmask hostapd if masked by systemd
+systemctl unmask hostapd 2>/dev/null || true
+
+# Configure /etc/default/hostapd to point to config file
+if [ -f "/etc/default/hostapd" ]; then
+  sed -i 's|^#\?DAEMON_CONF=.*|DAEMON_CONF="/etc/hostapd/hostapd.conf"|' /etc/default/hostapd
+else
+  echo 'DAEMON_CONF="/etc/hostapd/hostapd.conf"' > /etc/default/hostapd
+fi
 mkdir -p /opt/netliberation
 
 # Create Python Virtual Environment to eliminate root pip warnings & package conflicts

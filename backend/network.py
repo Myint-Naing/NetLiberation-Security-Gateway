@@ -68,6 +68,9 @@ driver=nl80211
 ssid={ssid}
 hw_mode=g
 channel={channel}
+country_code=US
+ieee80211n=1
+ht_capab=[HT20]
 wmm_enabled=1
 macaddr_acl=0
 auth_algs=1
@@ -75,7 +78,7 @@ ignore_broadcast_ssid=0
 wpa=2
 wpa_passphrase={password}
 wpa_key_mgmt=WPA-PSK
-wpa_pairwise=TKIP
+wpa_pairwise=CCMP
 rsn_pairwise=CCMP
 """
 
@@ -118,6 +121,8 @@ def apply_network_mode(mode: str) -> bool:
         try:
             with open("/etc/hostapd/hostapd.conf", "w") as f:
                 f.write(hostapd_content)
+            subprocess.run(["sudo", "systemctl", "unmask", "hostapd"], check=False)
+            subprocess.run(["sudo", "systemctl", "restart", "hostapd"], check=False)
         except Exception:
             pass
 
