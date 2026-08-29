@@ -66,8 +66,9 @@ if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files | grep -q "
   fi
 fi
 
-# Fallback DNS resolution if systemd-resolved is unavailable or failed
-if ! ping -c 1 1.1.1.1 >/dev/null 2>&1 && ! host google.com >/dev/null 2>&1; then
+# Fallback DNS resolution if domain lookup fails
+if ! host google.com >/dev/null 2>&1 && ! nslookup google.com >/dev/null 2>&1; then
+  rm -f /etc/resolv.conf 2>/dev/null || true
   echo -e "nameserver 1.1.1.1\nnameserver 8.8.8.8" > /etc/resolv.conf
   echo -e "  -> Configured fallback nameservers in /etc/resolv.conf (1.1.1.1, 8.8.8.8)."
 fi

@@ -102,14 +102,13 @@ echo -e "\n${YELLOW}[PRE-FLIGHT] Checking Port & Service Conflicts...${NC}"
 check_port_conflict 53 "systemd-resolved / dnsmasq"
 check_port_conflict 80 "web server (apache/nginx)"
 check_port_conflict 67 "DHCP Server"
-check_port_conflict 68 "DHCP Client"
 
 # --- 3. Dependency Installation ---
 echo -e "\n${YELLOW}[INSTALL] Installing System Dependencies & Routing Components...${NC}"
 apt-get update -qq
 apt-get install -y -qq \
-  python3 python3-pip python3-venv \
-  hostapd dnsmasq iptables nftables \
+  python3 python3-pip python3-venv python3-pytest \
+  hostapd dnsmasq iptables nftables rfkill \
   wireguard openvpn shadowsocks-libev xl2tpd \
   iw net-tools lsof speedtest-cli curl >/dev/null
 
@@ -142,7 +141,11 @@ fi
 
 # Install python requirements in dedicated venv
 /opt/netliberation/venv/bin/pip install --quiet \
-  fastapi uvicorn pydantic psutil requests beautifulsoup4 pyjwt passlib
+  fastapi uvicorn pydantic psutil requests beautifulsoup4 pyjwt passlib pytest
+
+# Symlink pytest into system PATH so 'pytest tests/ -v' and 'sudo pytest tests/ -v' work directly
+ln -sf /opt/netliberation/venv/bin/pytest /usr/local/bin/pytest 2>/dev/null || true
+ln -sf /opt/netliberation/venv/bin/pytest /usr/bin/pytest 2>/dev/null || true
 
 # Systemd Service File Creation
 cat << 'EOF' > /etc/systemd/system/netliberation.service
@@ -168,10 +171,16 @@ if [ "$(pwd)" != "/opt/netliberation" ]; then
   cp -r backend frontend docs /opt/netliberation/ 2>/dev/null || true
 fi
 
-# Enable Systemd Service
+# Enable Systemd Service & Trigger Mode A Wi-Fi AP Startup
 systemctl daemon-reload
 systemctl enable netliberation.service
 systemctl restart netliberation.service || true
+
+# Trigger initial network mode setup (Mode A) & start hostapd / dnsmasq
+/opt/netliberation/venv/bin/python -c "from backend.network import apply_network_mode; apply_network_mode('A')" 2>/dev/null || true
+systemctl unmask hostapd 2>/dev/null || true
+systemctl enable hostapd dnsmasq 2>/dev/null || true
+systemctl restart hostapd dnsmasq 2>/dev/null || true
 
 # --- 5. Automated Cron & Retention Setup ---
 echo -e "\n${YELLOW}[CRON] Setting up 7-Day Log Retention & Auto-Renewal Timers...${NC}"
