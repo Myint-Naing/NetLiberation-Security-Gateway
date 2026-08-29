@@ -49,9 +49,28 @@ iptables -t nat -F 2>/dev/null || true
 iptables -F 2>/dev/null || true
 echo -e "  -> NAT and forwarding rules flushed."
 
-echo -e "\n${YELLOW}[4/5] Restoring network configurations...${NC}"
+echo -e "\n${YELLOW}[4/5] Restoring network configurations & DNS resolver...${NC}"
 systemctl stop hostapd dnsmasq 2>/dev/null || true
-echo -e "  -> Stopped hostapd and dnsmasq instances."
+systemctl disable hostapd dnsmasq 2>/dev/null || true
+echo -e "  -> Stopped and disabled hostapd and dnsmasq instances."
+
+# Restore systemd-resolved and DNS resolution settings
+if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files | grep -q "systemd-resolved"; then
+  echo -e "  -> Re-enabling and starting systemd-resolved..."
+  systemctl enable systemd-resolved 2>/dev/null || true
+  systemctl start systemd-resolved 2>/dev/null || true
+  if [ -d "/run/systemd/resolve" ]; then
+    rm -f /etc/resolv.conf 2>/dev/null || true
+    ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf 2>/dev/null || true
+    echo -e "  -> Restored /etc/resolv.conf symlink to systemd-resolved stub-resolv.conf."
+  fi
+fi
+
+# Fallback DNS resolution if systemd-resolved is unavailable or failed
+if ! ping -c 1 1.1.1.1 >/dev/null 2>&1 && ! host google.com >/dev/null 2>&1; then
+  echo -e "nameserver 1.1.1.1\nnameserver 8.8.8.8" > /etc/resolv.conf
+  echo -e "  -> Configured fallback nameservers in /etc/resolv.conf (1.1.1.1, 8.8.8.8)."
+fi
 
 echo -e "\n${YELLOW}[5/5] Removing installed files and directories...${NC}"
 rm -rf /etc/netliberation
