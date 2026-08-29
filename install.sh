@@ -82,6 +82,13 @@ check_port_conflict() {
       systemctl stop systemd-resolved dnsmasq apache2 nginx 2>/dev/null || true
       systemctl disable systemd-resolved dnsmasq apache2 nginx 2>/dev/null || true
       apt-get purge -y apache2 nginx 2>/dev/null || true
+
+      # Preserve host DNS resolution during installation if systemd-resolved was stopped
+      if [ "$port" -eq 53 ]; then
+        echo -e "nameserver 1.1.1.1\nnameserver 8.8.8.8" > /etc/resolv.conf
+        echo -e "  -> Temporary fallback DNS nameservers (1.1.1.1, 8.8.8.8) written to /etc/resolv.conf."
+      fi
+
       echo -e "${GREEN}Port $port freed successfully.${NC}"
       CONFLICTS_RESOLVED=1
     else
