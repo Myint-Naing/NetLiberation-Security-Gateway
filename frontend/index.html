@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetLiberation Security Gateway</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Glass Header & Navigation -->
+  <header class="navbar">
+    <div class="brand">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      NetLiberation Gateway
+    </div>
+    <ul class="nav-links">
+      <li class="nav-tab active" onclick="switchTab('dashboard')">Dashboard</li>
+      <li class="nav-tab" onclick="switchTab('network')">Network & Mode</li>
+      <li class="nav-tab" onclick="switchTab('vpn')">VPN Gateway</li>
+      <li class="nav-tab" onclick="switchTab('security')">Security & DNS</li>
+      <li class="nav-tab" onclick="switchTab('admin')">Administration</li>
+      <li class="nav-tab" onclick="switchTab('tools')">Diagnostics</li>
+    </ul>
+  </header>
+
+  <main class="container">
+    <!-- TAB 1: DASHBOARD -->
+    <section id="tab-dashboard" class="tab-content active">
+      <div class="grid-4">
+        <div class="glass-card metric-box">
+          <span class="metric-label">CPU Utilization</span>
+          <span class="metric-value" id="val-cpu">0%</span>
+          <span class="badge badge-info" id="val-governor">schedutil</span>
+        </div>
+        <div class="glass-card metric-box">
+          <span class="metric-label">SOC Temperature</span>
+          <span class="metric-value" id="val-temp">0.0°C</span>
+          <span class="badge badge-success" id="val-thermal-status">Normal</span>
+        </div>
+        <div class="glass-card metric-box">
+          <span class="metric-label">RAM Utilization</span>
+          <span class="metric-value" id="val-ram">0.0 MB</span>
+          <span class="badge badge-info" id="val-ram-pct">0%</span>
+        </div>
+        <div class="glass-card metric-box">
+          <span class="metric-label">VPN Tunnel Status</span>
+          <span class="metric-value" id="val-vpn-status" style="font-size: 1.5rem;">Disconnected</span>
+          <span class="badge badge-danger" id="val-vpn-badge">Direct WAN</span>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="glass-card">
+          <div class="card-title">Connected Devices (DHCP Clients)</div>
+          <table class="glass-table">
+            <thead>
+              <tr>
+                <th>Hostname</th>
+                <th>IP Address</th>
+                <th>MAC Address</th>
+                <th>Bandwidth DL/UL</th>
+              </tr>
+            </thead>
+            <tbody id="table-dhcp-clients">
+              <tr><td colspan="4">Loading clients...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="glass-card">
+          <div class="card-title">Live Web Activity & DNS Filter Stream</div>
+          <table class="glass-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Client IP</th>
+                <th>Requested Domain</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="table-dns-stream">
+              <tr><td colspan="4">Loading stream...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: NETWORK & OPERATION MODE -->
+    <section id="tab-network" class="tab-content">
+      <div class="grid-2">
+        <div class="glass-card">
+          <div class="card-title">Operation Mode Switcher</div>
+          <div class="form-group">
+            <label class="form-label">Select Dynamic Routing Topology</label>
+            <select class="glass-select" id="select-op-mode">
+              <option value="A">Mode A: Eth (WAN) -> Built-in Wi-Fi (LAN AP) [Default]</option>
+              <option value="B">Mode B: USB Wi-Fi (WAN) -> Built-in Wi-Fi (LAN AP)</option>
+              <option value="C">Mode C: Built-in Wi-Fi (WAN) -> USB Wi-Fi (LAN AP)</option>
+              <option value="D">Mode D: Built-in Wi-Fi (WAN Client) -> Eth (LAN)</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="applyOperationMode()">Apply Operation Mode</button>
+        </div>
+
+        <div class="glass-card">
+          <div class="card-title">LAN & Wi-Fi Access Point Settings</div>
+          <div class="form-group">
+            <label class="form-label">Gateway IP Address</label>
+            <input type="text" class="glass-input" id="input-lan-ip" value="192.168.200.254">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Wi-Fi AP SSID</label>
+            <input type="text" class="glass-input" id="input-wifi-ssid" value="NetLiberation">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Wi-Fi Passphrase</label>
+            <input type="password" class="glass-input" id="input-wifi-pass" value="Freedom4all">
+          </div>
+          <button class="btn btn-primary" onclick="saveLanSettings()">Save LAN Configuration</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: VPN GATEWAY -->
+    <section id="tab-vpn" class="tab-content">
+      <div class="grid-2">
+        <div class="glass-card">
+          <div class="card-title">VPN Gateway Controls</div>
+          <div class="form-group">
+            <label class="form-label">Master VPN Tunnel Switch</label>
+            <button class="btn btn-primary" id="btn-vpn-toggle" onclick="toggleVpnMaster()">Enable VPN Tunnel</button>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Active Protocol</label>
+            <select class="glass-select" id="select-vpn-protocol">
+              <option value="wireguard">WireGuard</option>
+              <option value="openvpn">OpenVPN</option>
+              <option value="l2tp">L2TP</option>
+              <option value="shadowsocks">Shadowsocks (Outline)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label><input type="checkbox" id="chk-killswitch" checked> Enable Kill-Switch (Block WAN if VPN drops)</label>
+          </div>
+        </div>
+
+        <div class="glass-card">
+          <div class="card-title">Automated Key Generators & Scrapers</div>
+          <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <button class="btn btn-accent" onclick="generateWarp()">
+              ⚡ Generate & Activate Cloudflare WARP
+            </button>
+            <button class="btn btn-accent" onclick="fetchOutlineKey()">
+              🔍 Scrape & Activate Outline Server Key
+            </button>
+          </div>
+          <div id="box-vpn-meta" style="margin-top: 1.5rem;" class="terminal-box">
+            No active generator metadata.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: SECURITY & DNS BLOCKER -->
+    <section id="tab-security" class="tab-content">
+      <div class="grid-2">
+        <div class="glass-card">
+          <div class="card-title">Native Ad-Blocker & Domain Filtering</div>
+          <div class="form-group">
+            <label class="form-label">Master Filter Toggle</label>
+            <button class="btn btn-primary" id="btn-dns-toggle" onclick="toggleDnsMaster()">Master Blocker: Enabled</button>
+          </div>
+          <div class="form-group">
+            <button class="btn btn-accent" onclick="syncAdblockLists()">Sync & Compile Filter Feeds</button>
+          </div>
+          <p>Total Blocked Domains: <strong id="val-blocked-domains">85,420</strong></p>
+        </div>
+
+        <div class="glass-card">
+          <div class="card-title">Custom Whitelist & Blacklist</div>
+          <div class="form-group">
+            <label class="form-label">Domain Name</label>
+            <input type="text" class="glass-input" id="input-domain-rule" placeholder="ads.example.com">
+          </div>
+          <div style="display: flex; gap: 1rem;">
+            <button class="btn btn-accent" onclick="addDomainWhitelist()">Add to Whitelist</button>
+            <button class="btn btn-danger" onclick="addDomainBlacklist()">Add to Blacklist</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: ADMINISTRATION -->
+    <section id="tab-admin" class="tab-content">
+      <div class="grid-2">
+        <div class="glass-card">
+          <div class="card-title">Hardware & CPU Tuning</div>
+          <div class="form-group">
+            <label class="form-label">CPU Scaling Governor</label>
+            <select class="glass-select" id="select-governor" onchange="changeGovernor()">
+              <option value="schedutil">schedutil (Recommended)</option>
+              <option value="performance">performance (Max Clock speed)</option>
+              <option value="powersave">powersave (Low Temp)</option>
+            </select>
+          </div>
+          <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+            <button class="btn btn-danger" onclick="rebootSystem()">Reboot System</button>
+            <button class="btn btn-danger" onclick="shutdownSystem()">Shutdown Gateway</button>
+          </div>
+        </div>
+
+        <div class="glass-card">
+          <div class="card-title">System & Operation Log Viewer</div>
+          <button class="btn btn-primary" style="margin-bottom: 1rem;" onclick="loadSystemLogs()">Refresh Logs</button>
+          <div class="terminal-box" id="box-sys-logs">Loading system logs...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 6: DIAGNOSTICS -->
+    <section id="tab-tools" class="tab-content">
+      <div class="glass-card">
+        <div class="card-title">Network Diagnostic Suite</div>
+        <div class="form-group">
+          <label class="form-label">Target Host / IP / Domain</label>
+          <input type="text" class="glass-input" id="input-tool-target" value="8.8.8.8">
+        </div>
+        <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+          <button class="btn btn-primary" onclick="runPingTool()">Ping Target</button>
+          <button class="btn btn-primary" onclick="runTracerouteTool()">Traceroute</button>
+          <button class="btn btn-primary" onclick="runNslookupTool()">Nslookup</button>
+          <button class="btn btn-accent" onclick="runSpeedtestTool()">Speedtest Benchmark</button>
+        </div>
+        <div class="terminal-box" id="box-tool-output">Diagnostic results will appear here...</div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
