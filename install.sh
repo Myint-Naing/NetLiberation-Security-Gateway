@@ -79,6 +79,8 @@ check_port_conflict() {
 echo -e "\n${YELLOW}[PRE-FLIGHT] Checking Port & Service Conflicts...${NC}"
 check_port_conflict 53 "systemd-resolved / dnsmasq"
 check_port_conflict 80 "web server (apache/nginx)"
+check_port_conflict 67 "DHCP Server"
+check_port_conflict 68 "DHCP Client"
 
 # --- 3. Dependency Installation ---
 echo -e "\n${YELLOW}[INSTALL] Installing System Dependencies & Routing Components...${NC}"

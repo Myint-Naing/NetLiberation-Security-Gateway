@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <!-- Dark Glass Background Gradient -->
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090d16"/>
+      <stop offset="50%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#050811"/>
+    </linearGradient>
+
+    <!-- Glassmorphism Card Gradient -->
+    <linearGradient id="glass-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.02"/>
+    </linearGradient>
+
+    <!-- Cyan/Blue Accent Gradient -->
+    <linearGradient id="accent-cyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f2fe"/>
+      <stop offset="100%" stop-color="#4facfe"/>
+    </linearGradient>
+
+    <!-- Emerald Glow Gradient -->
+    <linearGradient id="accent-emerald" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+
+    <!-- Glass Border Gradient -->
+    <linearGradient id="border-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f2fe" stop-opacity="0.5"/>
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.3"/>
+    </linearGradient>
+
+    <!-- Glow Filter -->
+    <filter id="neon-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg-grad)"/>
+
+  <!-- Subtle Network Grid Background -->
+  <g stroke="#ffffff" stroke-opacity="0.03" stroke-width="1">
+    <path d="M0 100 H1200 M0 200 H1200 M0 300 H1200 M0 400 H1200 M0 500 H1200" />
+    <path d="M200 0 V630 M400 0 V630 M600 0 V630 M800 0 V630 M1000 0 V630" />
+  </g>
+
+  <!-- Glowing Radial Background Orbs -->
+  <circle cx="300" cy="200" r="220" fill="#00f2fe" fill-opacity="0.12" filter="url(#neon-glow)"/>
+  <circle cx="900" cy="450" r="250" fill="#3b82f6" fill-opacity="0.1" filter="url(#neon-glow)"/>
+
+  <!-- Main Glassmorphic Container Panel -->
+  <rect x="80" y="70" width="1040" height="490" rx="24" fill="url(#glass-grad)" stroke="url(#border-grad)" stroke-width="1.5" />
+
+  <!-- Shield & Gateway Graphic Icon -->
+  <g transform="translate(140, 165)">
+    <!-- Outer Glowing Shield -->
+    <path d="M100 10 L190 55 V130 C190 195 100 245 100 245 C100 245 10 195 10 130 V55 Z"
+          fill="none" stroke="url(#accent-cyan)" stroke-width="4" filter="url(#neon-glow)"/>
+
+    <path d="M100 25 L175 62 V125 C175 180 100 222 100 222 C100 222 25 180 25 125 V62 Z"
+          fill="#00f2fe" fill-opacity="0.05" stroke="#ffffff" stroke-opacity="0.2" stroke-width="1"/>
+
+    <!-- Central Routing / Cipher Node Lines -->
+    <circle cx="100" cy="110" r="16" fill="url(#accent-cyan)"/>
+    <circle cx="65" cy="85" r="8" fill="#ffffff" fill-opacity="0.8"/>
+    <circle cx="135" cy="85" r="8" fill="#ffffff" fill-opacity="0.8"/>
+    <circle cx="65" cy="145" r="8" fill="#ffffff" fill-opacity="0.8"/>
+    <circle cx="135" cy="145" r="8" fill="#ffffff" fill-opacity="0.8"/>
+
+    <line x1="100" y1="110" x2="65" y2="85" stroke="#00f2fe" stroke-width="2.5"/>
+    <line x1="100" y1="110" x2="135" y2="85" stroke="#00f2fe" stroke-width="2.5"/>
+    <line x1="100" y1="110" x2="65" y2="145" stroke="#00f2fe" stroke-width="2.5"/>
+    <line x1="100" y1="110" x2="135" y2="145" stroke="#00f2fe" stroke-width="2.5"/>
+  </g>
+
+  <!-- Typography Header -->
+  <text x="390" y="210" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="800" font-size="52" fill="#ffffff" letter-spacing="1">
+    NetLiberation
+  </text>
+
+  <text x="390" y="265" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="600" font-size="34" fill="#00f2fe" letter-spacing="3">
+    SECURITY GATEWAY
+  </text>
+
+  <text x="390" y="315" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="400" font-size="20" fill="#94a3b8">
+    Enterprise Embedded Router &amp; Privacy Suite for Debian SBCs
+  </text>
+
+  <!-- Feature Badges Row -->
+  <!-- WireGuard / VPN Badge -->
+  <g transform="translate(390, 360)">
+    <rect width="180" height="42" rx="10" fill="#ffffff" fill-opacity="0.06" stroke="#ffffff" stroke-opacity="0.12"/>
+    <circle cx="24" cy="21" r="5" fill="#10b981"/>
+    <text x="38" y="26" font-family="sans-serif" font-size="14" font-weight="600" fill="#e2e8f0">Multi-VPN Core</text>
+  </g>
+
+  <!-- 4-Mode Dynamic Switch Badge -->
+  <g transform="translate(585, 360)">
+    <rect width="200" height="42" rx="10" fill="#ffffff" fill-opacity="0.06" stroke="#ffffff" stroke-opacity="0.12"/>
+    <circle cx="24" cy="21" r="5" fill="#00f2fe"/>
+    <text x="38" y="26" font-family="sans-serif" font-size="14" font-weight="600" fill="#e2e8f0">4-Mode Switching</text>
+  </g>
+
+  <!-- Glassmorphism Panel Badge -->
+  <g transform="translate(800, 360)">
+    <rect width="190" height="42" rx="10" fill="#ffffff" fill-opacity="0.06" stroke="#ffffff" stroke-opacity="0.12"/>
+    <circle cx="24" cy="21" r="5" fill="#3b82f6"/>
+    <text x="38" y="26" font-family="sans-serif" font-size="14" font-weight="600" fill="#e2e8f0">Liquid Glass WebUI</text>
+  </g>
+
+  <!-- Compatible Hardware Footer Badges -->
+  <g transform="translate(390, 440)">
+    <text x="0" y="20" font-family="sans-serif" font-size="15" font-weight="600" fill="#64748b" letter-spacing="1.5">
+      TARGET PLATFORMS:
+    </text>
+    <text x="175" y="20" font-family="sans-serif" font-size="15" font-weight="600" fill="#cbd5e1">
+      Raspberry Pi • Orange Pi • Rockchip SBCs (1.5GB–2GB+ RAM)
+    </text>
+  </g>
+
+  <!-- Software Status Tag -->
+  <g transform="translate(930, 115)">
+    <rect width="140" height="32" rx="16" fill="url(#accent-emerald)"/>
+    <text x="70" y="21" font-family="sans-serif" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="1">
+      v1.0 RELEASE
+    </text>
+  </g>
+</svg>
