@@ -2,11 +2,11 @@
 # NetLiberation Security Gateway - Clean Uninstallation Engine
 set -e
 
-RED='\030[0;31m'
-GREEN='\030[0;32m'
-YELLOW='\030[1;33m'
-BLUE='\030[0;34m'
-NC='\030[0m' # No Color
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
 echo -e "${BLUE}================================================================${NC}"
 echo -e "${BLUE}       NetLiberation Security Gateway - Uninstallation Engine   ${NC}"
