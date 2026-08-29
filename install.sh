@@ -16,8 +16,10 @@ echo -e "${BLUE}================================================================
 if [ "$1" == "--uninstall" ] || [ "$1" == "-u" ]; then
   if [ -f "./uninstall.sh" ]; then
     exec bash ./uninstall.sh
+  elif [ -f "/opt/netliberation/uninstall.sh" ]; then
+    exec bash /opt/netliberation/uninstall.sh
   else
-    echo -e "${RED}[ERROR] uninstall.sh script not found in current directory.${NC}"
+    echo -e "${RED}[ERROR] uninstall.sh script not found.${NC}"
     exit 1
   fi
 fi
@@ -53,7 +55,7 @@ fi
 # Network Interface Audit (Require 1 Ethernet + at least 1 Wi-Fi)
 IFACES=$(ip -br link show | awk '{print $1}')
 ETH_COUNT=$(echo "$IFACES" | grep -c "^eth\|^en" || true)
-WIFI_COUNT=$(echo "$IFACES" | grep -c "^wlan\|^wl" || true)
+WIFI_COUNT=$(echo "$IFACES" | grep -c "^wlan\|^wl\|^wlx" || true)
 
 echo -e "  -> Ethernet Interfaces Found: ${ETH_COUNT}"
 echo -e "  -> Wi-Fi Interfaces Found: ${WIFI_COUNT}"
@@ -85,6 +87,7 @@ check_port_conflict() {
 
       # Preserve host DNS resolution during installation if systemd-resolved was stopped
       if [ "$port" -eq 53 ]; then
+        rm -f /etc/resolv.conf
         echo -e "nameserver 1.1.1.1\nnameserver 8.8.8.8" > /etc/resolv.conf
         echo -e "  -> Temporary fallback DNS nameservers (1.1.1.1, 8.8.8.8) written to /etc/resolv.conf."
       fi
@@ -122,6 +125,7 @@ mkdir -p /etc/netliberation
 mkdir -p /var/log/netliberation
 mkdir -p /etc/hostapd
 mkdir -p /etc/dnsmasq.d
+mkdir -p /etc/NetworkManager/conf.d
 
 # Unmask hostapd if masked by systemd
 systemctl unmask hostapd 2>/dev/null || true
@@ -147,7 +151,7 @@ fi
 ln -sf /opt/netliberation/venv/bin/pytest /usr/local/bin/pytest 2>/dev/null || true
 ln -sf /opt/netliberation/venv/bin/pytest /usr/bin/pytest 2>/dev/null || true
 
-# Systemd Service File Creation
+# Systemd Service File Creation with explicitly set PYTHONPATH
 cat << 'EOF' > /etc/systemd/system/netliberation.service
 [Unit]
 Description=NetLiberation Security Gateway Core Backend
@@ -157,6 +161,7 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=/opt/netliberation
+Environment="PYTHONPATH=/opt/netliberation"
 ExecStart=/opt/netliberation/venv/bin/uvicorn backend.app:app --host 0.0.0.0 --port 80
 Restart=always
 RestartSec=5
@@ -165,14 +170,39 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
-# Copy codebase to /opt/netliberation if executing from outside
-if [ "$(pwd)" != "/opt/netliberation" ]; then
-  mkdir -p /opt/netliberation
-  cp -r backend frontend docs tests conftest.py /opt/netliberation/ 2>/dev/null || true
+# Determine script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Always copy codebase cleanly item-by-item to /opt/netliberation
+mkdir -p /opt/netliberation
+for item in backend frontend docs tests conftest.py uninstall.sh diagnose.sh; do
+  if [ -e "$SCRIPT_DIR/$item" ]; then
+    rm -rf "/opt/netliberation/$item"
+    cp -r "$SCRIPT_DIR/$item" "/opt/netliberation/$item"
+  fi
+done
+
+# Install diagnostic collector script and create system-wide symlinks
+if [ -f "/opt/netliberation/diagnose.sh" ]; then
+  chmod +x /opt/netliberation/diagnose.sh
+  ln -sf /opt/netliberation/diagnose.sh /usr/local/bin/netliberation-diag 2>/dev/null || true
+  ln -sf /opt/netliberation/diagnose.sh /usr/bin/netliberation-diag 2>/dev/null || true
 fi
 
-# Ensure world-read/write/execute permissions so non-root users can run pytest in /opt/netliberation
-chmod -R a+rwX /opt/netliberation
+# Ensure full permissions so non-root users (e.g. myint) can run pytest and write .pytest_cache in /opt/netliberation
+chmod -R 777 /opt/netliberation
+
+# Configure NetworkManager unmanaged rule for LAN AP interface
+echo -e "[keyfile]\nunmanaged-devices=interface-name:wlan0,interface-name:wlan1,interface-name:wlx*" > /etc/NetworkManager/conf.d/netliberation.conf
+systemctl reload NetworkManager 2>/dev/null || nmcli general reload 2>/dev/null || true
+
+# Configure regulatory domain, disconnect wlan0 from NetworkManager & unblock RF kill-switches
+iw reg set US 2>/dev/null || true
+nmcli dev disconnect wlan0 2>/dev/null || true
+nmcli dev set wlan0 managed no 2>/dev/null || true
+pkill -f "wpa_supplicant.*wlan0" 2>/dev/null || true
+ip link set dev wlan0 down 2>/dev/null || true
+rfkill unblock all 2>/dev/null || true
 
 # Enable Systemd Service & Trigger Mode A Wi-Fi AP Startup
 systemctl daemon-reload
@@ -180,7 +210,7 @@ systemctl enable netliberation.service
 systemctl restart netliberation.service || true
 
 # Trigger initial network mode setup (Mode A) & start hostapd / dnsmasq
-/opt/netliberation/venv/bin/python -c "from backend.network import apply_network_mode; apply_network_mode('A')" 2>/dev/null || true
+/opt/netliberation/venv/bin/python -c "import sys; sys.path.insert(0, '/opt/netliberation'); from backend.network import apply_network_mode; apply_network_mode('A')" 2>/dev/null || true
 systemctl unmask hostapd 2>/dev/null || true
 systemctl enable hostapd dnsmasq 2>/dev/null || true
 systemctl restart hostapd dnsmasq 2>/dev/null || true
@@ -189,7 +219,7 @@ systemctl restart hostapd dnsmasq 2>/dev/null || true
 echo -e "\n${YELLOW}[CRON] Setting up 7-Day Log Retention & Auto-Renewal Timers...${NC}"
 
 # Daily Cron Job for 7-Day Log Purge & Cloudflare WARP/Outline Renewal
-CRON_JOB="0 3 * * * /opt/netliberation/venv/bin/python -c 'from backend.logging_service import purge_old_logs; purge_old_logs(7); from backend.warp import check_and_renew_warp_key; check_and_renew_warp_key()' >/dev/null 2>&1"
+CRON_JOB="0 3 * * * PYTHONPATH=/opt/netliberation /opt/netliberation/venv/bin/python -c 'from backend.logging_service import purge_old_logs; purge_old_logs(7); from backend.warp import check_and_renew_warp_key; check_and_renew_warp_key()' >/dev/null 2>&1"
 (crontab -l 2>/dev/null | grep -v "purge_old_logs"; echo "$CRON_JOB") | crontab -
 
 echo -e "\n${GREEN}================================================================${NC}"
