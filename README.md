@@ -77,6 +77,25 @@ Execute the interactive automated installation script on a fresh **Debian Linux*
 sudo bash install.sh
 ```
 
+> **Note:** After pulling or updating codebase changes, always re-run `sudo bash install.sh` from the repository folder to ensure all updated modules (`backend/`, `frontend/`, `tests/`, `diagnose.sh`) and PATH symlinks are deployed to `/opt/netliberation`.
+
+### Diagnostic Collector Script
+
+To collect system metrics, service logs, network interface links, `hostapd`/`dnsmasq` configurations, and systemd journal logs into a single report file:
+
+```bash
+# System-wide command (after installation)
+sudo netliberation-diag
+
+# Or execute directly
+sudo bash /opt/netliberation/diagnose.sh
+# Or from the repository directory:
+sudo bash diagnose.sh
+
+# Report output location:
+# /var/log/netliberation/diagnostic_report.log
+```
+
 ### Uninstallation
 
 To remove NetLiberation Security Gateway and restore system defaults:
