@@ -168,7 +168,7 @@ EOF
 # Copy codebase to /opt/netliberation if executing from outside
 if [ "$(pwd)" != "/opt/netliberation" ]; then
   mkdir -p /opt/netliberation
-  cp -r backend frontend docs /opt/netliberation/ 2>/dev/null || true
+  cp -r backend frontend docs tests conftest.py /opt/netliberation/ 2>/dev/null || true
 fi
 
 # Enable Systemd Service & Trigger Mode A Wi-Fi AP Startup

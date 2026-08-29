@@ -149,6 +149,7 @@ Run the automated test suite using `pytest`:
 
 ```bash
 # Run all unit, stress, and security tests
+cd /opt/netliberation
 pytest tests/ -v
 ```
 
