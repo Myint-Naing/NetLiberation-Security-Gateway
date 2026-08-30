@@ -50,24 +50,39 @@ def fetch_active_outline_key() -> Dict[str, Any]:
     headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64)"}
 
     found_ss_uri = None
+    server_tag = "Outline-Server"
+    server_country = "US"
 
     try:
         resp = requests.get(target_url, headers=headers, timeout=10)
         if resp.status_code == 200:
             soup = BeautifulSoup(resp.text, "html.parser")
-            for item in soup.find_all(["div", "tr", "a"]):
-                text = item.get_text()
-                href = item.get("href", "")
-                if "ss://" in href:
-                    found_ss_uri = href
-                    break
-                elif "ss://" in text:
-                    for part in text.split():
-                        if part.startswith("ss://"):
-                            found_ss_uri = part
-                            break
+            # Look for active online server key links (e.g., /key/40477/)
+            key_pages = []
+            for a in soup.find_all("a"):
+                href = a.get("href", "")
+                if "/key/" in href:
+                    full_href = href if href.startswith("http") else f"https://outlinekeys.com{href}"
+                    key_pages.append(full_href)
+
+            for key_url in key_pages[:5]:
+                try:
+                    k_resp = requests.get(key_url, headers=headers, timeout=8)
+                    if k_resp.status_code == 200:
+                        k_soup = BeautifulSoup(k_resp.text, "html.parser")
+                        for el in k_soup.find_all(["input", "textarea", "code", "div", "button", "a"]):
+                            val = el.get("value") or el.get("data-clipboard-text") or el.get_text()
+                            if "ss://" in str(val):
+                                for word in str(val).split():
+                                    if word.startswith("ss://"):
+                                        found_ss_uri = word
+                                        break
+                                if found_ss_uri:
+                                    break
                     if found_ss_uri:
                         break
+                except Exception:
+                    continue
     except Exception:
         pass
 

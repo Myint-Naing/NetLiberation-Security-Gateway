@@ -296,14 +296,14 @@ async function uploadVpnProfile() {
     const reader = new FileReader();
     reader.onload = async function(e) {
       const content = e.target.result;
-      const res = await apiRequest('/api/vpn/profile/upload', 'POST', { protocol: proto, filename: file.name, content });
+      const res = await apiRequest('/vpn/profile/upload', 'POST', { protocol: proto, filename: file.name, content });
       metaBox.innerText = `Uploaded VPN Profile '${file.name}' for protocol '${proto}':\n` + content;
       alert(`VPN Profile '${file.name}' imported successfully!`);
     };
     reader.readAsText(file);
   } else if (textInput.value.trim().length > 0) {
     const content = textInput.value.trim();
-    const res = await apiRequest('/api/vpn/profile/raw', 'POST', { protocol: proto, content });
+    const res = await apiRequest('/vpn/profile/raw', 'POST', { protocol: proto, content });
     metaBox.innerText = `Imported Custom Config for protocol '${proto}':\n` + content;
     alert(`VPN Credentials / Config for '${proto}' imported successfully!`);
   } else {
