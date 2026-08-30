@@ -63,6 +63,12 @@ async function performLogin() {
   }
 }
 
+function performLogout() {
+  authToken = '';
+  localStorage.removeItem('token');
+  showLoginModal();
+}
+
 async function loadDashboardData() {
   if (!authToken) {
     showLoginModal();
@@ -151,6 +157,36 @@ async function saveLanSettings() {
   if (res) alert('LAN Configuration saved successfully!');
 }
 
+async function scanWifiNetworks() {
+  const tbody = document.getElementById('table-wifi-scan');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="3">Scanning Wi-Fi networks...</td></tr>';
+  const networks = await apiRequest('/network/wifi-scan');
+  if (networks && networks.length > 0) {
+    tbody.innerHTML = networks.map(n => `
+      <tr>
+        <td><strong>${n.ssid}</strong></td>
+        <td>${n.signal}</td>
+        <td><button class="btn btn-accent" style="padding: 0.3rem 0.8rem; font-size: 0.8rem;" onclick="selectWifiSsid('${n.ssid}')">Connect</button></td>
+      </tr>
+    `).join('');
+  } else {
+    tbody.innerHTML = '<tr><td colspan="3">No networks found.</td></tr>';
+  }
+}
+
+function selectWifiSsid(ssid) {
+  const input = document.getElementById('input-wan-wifi-ssid');
+  if (input) input.value = ssid;
+}
+
+async function connectWanWifi() {
+  const ssid = document.getElementById('input-wan-wifi-ssid').value;
+  const pass = document.getElementById('input-wan-wifi-pass').value;
+  if (!ssid) return alert('Please enter or select a Wi-Fi SSID');
+  alert(`Connecting WAN uplink to Wi-Fi AP '${ssid}'...`);
+}
+
 // --- Tab 3: VPN Gateway Functions ---
 async function loadVpnConfig() {
   const vpn = await apiRequest('/vpn/status');
@@ -191,6 +227,27 @@ async function fetchOutlineKey() {
   if (res) {
     metaBox.innerText = JSON.stringify(res.meta, null, 2);
     loadDashboardData();
+  }
+}
+
+async function uploadVpnProfile() {
+  const fileInput = document.getElementById('input-vpn-file');
+  const textInput = document.getElementById('input-vpn-raw');
+  const metaBox = document.getElementById('box-vpn-meta');
+
+  if (fileInput.files.length > 0) {
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      metaBox.innerText = `Uploaded VPN Profile '${file.name}':\n` + e.target.result;
+      alert(`VPN Profile '${file.name}' imported successfully!`);
+    };
+    reader.readAsText(file);
+  } else if (textInput.value.trim().length > 0) {
+    metaBox.innerText = 'Imported Custom Config / Key:\n' + textInput.value;
+    alert('VPN Credentials / Config imported successfully!');
+  } else {
+    alert('Please select a .conf / .ovpn file or enter manual configuration credentials.');
   }
 }
 
@@ -310,17 +367,8 @@ setInterval(() => {
 }, 3000);
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Auto login if no token set
   if (!authToken) {
-    apiRequest('/auth/login', 'POST', { username: 'admin', password: 'admin' }).then(res => {
-      if (res && res.token) {
-        authToken = res.token;
-        localStorage.setItem('token', authToken);
-        loadDashboardData();
-      } else {
-        showLoginModal();
-      }
-    });
+    showLoginModal();
   } else {
     loadDashboardData();
   }

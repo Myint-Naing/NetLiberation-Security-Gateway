@@ -7,6 +7,22 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <!-- Login Modal Overlay -->
+  <div id="modal-login" class="modal-overlay" style="display: none;">
+    <div class="glass-card modal-content">
+      <div class="card-title">NetLiberation Security Gateway Admin Login</div>
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input type="text" id="login-username" class="glass-input" value="admin">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" id="login-password" class="glass-input" value="admin">
+      </div>
+      <button class="btn btn-primary" style="width: 100%; justify-content: center;" onclick="performLogin()">Sign In</button>
+    </div>
+  </div>
+
   <!-- Glass Header & Navigation -->
   <header class="navbar">
     <div class="brand">
@@ -22,6 +38,7 @@
       <li class="nav-tab" onclick="switchTab('security')">Security & DNS</li>
       <li class="nav-tab" onclick="switchTab('admin')">Administration</li>
       <li class="nav-tab" onclick="switchTab('tools')">Diagnostics</li>
+      <li class="nav-tab" style="color: var(--accent-rose);" onclick="performLogout()">Sign Out</li>
     </ul>
   </header>
 
@@ -103,6 +120,30 @@
             </select>
           </div>
           <button class="btn btn-primary" onclick="applyOperationMode()">Apply Operation Mode</button>
+
+          <div class="card-title" style="margin-top: 2rem;">WAN Wi-Fi Uplink Scanner & Connection</div>
+          <button class="btn btn-accent" style="margin-bottom: 1rem;" onclick="scanWifiNetworks()">Scan Nearby Wi-Fi Networks</button>
+          <table class="glass-table">
+            <thead>
+              <tr>
+                <th>SSID</th>
+                <th>Signal</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="table-wifi-scan">
+              <tr><td colspan="3">Click scan to discover networks.</td></tr>
+            </tbody>
+          </table>
+          <div class="form-group" style="margin-top: 1rem;">
+            <label class="form-label">Target Wi-Fi SSID</label>
+            <input type="text" class="glass-input" id="input-wan-wifi-ssid" placeholder="Select or enter SSID">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Wi-Fi Password</label>
+            <input type="password" class="glass-input" id="input-wan-wifi-pass" placeholder="Enter Wi-Fi Password">
+          </div>
+          <button class="btn btn-primary" onclick="connectWanWifi()">Connect WAN Wi-Fi Uplink</button>
         </div>
 
         <div class="glass-card">
@@ -145,6 +186,17 @@
           <div class="form-group">
             <label><input type="checkbox" id="chk-killswitch" checked> Enable Kill-Switch (Block WAN if VPN drops)</label>
           </div>
+
+          <div class="card-title" style="margin-top: 2rem;">Upload Profile or Enter Key</div>
+          <div class="form-group">
+            <label class="form-label">Upload .conf / .ovpn Profile File</label>
+            <input type="file" class="glass-input" id="input-vpn-file" accept=".conf,.ovpn">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Or Paste Key / Credentials (e.g. ss:// URI, WireGuard Conf)</label>
+            <textarea class="glass-input" id="input-vpn-raw" rows="3" placeholder="Paste config file content or ss:// URI..."></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="uploadVpnProfile()">Import & Connect VPN Profile</button>
         </div>
 
         <div class="glass-card">
