@@ -1,11 +1,70 @@
 import os
+import json
 import psutil
 import subprocess
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from pydantic import BaseModel
+
+CONFIG_DIR = "/etc/netliberation" if os.access("/etc", os.W_OK) else "/tmp/netliberation"
+SYSTEM_CONFIG_FILE = os.path.join(CONFIG_DIR, "system_config.json")
 
 class GovernorRequest(BaseModel):
     governor: str
+
+class ScheduledRebootRequest(BaseModel):
+    enabled: bool
+    time: str = "03:00"
+    frequency: str = "daily"  # daily or weekly
+
+DEFAULT_SYS_CONFIG = {
+    "scheduled_reboot": {
+        "enabled": False,
+        "time": "03:00",
+        "frequency": "daily"
+    }
+}
+
+def get_system_config() -> Dict[str, Any]:
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    if not os.path.exists(SYSTEM_CONFIG_FILE):
+        with open(SYSTEM_CONFIG_FILE, "w") as f:
+            json.dump(DEFAULT_SYS_CONFIG, f, indent=2)
+        return DEFAULT_SYS_CONFIG
+    try:
+        with open(SYSTEM_CONFIG_FILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return DEFAULT_SYS_CONFIG
+
+def save_system_config(cfg: Dict[str, Any]):
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    with open(SYSTEM_CONFIG_FILE, "w") as f:
+        json.dump(cfg, f, indent=2)
+
+def set_scheduled_reboot(enabled: bool, time_str: str = "03:00", frequency: str = "daily") -> Dict[str, Any]:
+    cfg = get_system_config()
+    cfg["scheduled_reboot"] = {
+        "enabled": enabled,
+        "time": time_str,
+        "frequency": frequency
+    }
+    save_system_config(cfg)
+
+    cron_file = "/etc/cron.d/netliberation_reboot"
+    if os.access("/etc/cron.d", os.W_OK) or os.geteuid() == 0:
+        try:
+            if enabled and ":" in time_str:
+                hour, minute = time_str.split(":")
+                day_spec = "*" if frequency == "daily" else "0"
+                cron_content = f"{minute} {hour} * * {day_spec} root /usr/sbin/reboot\n"
+                with open(cron_file, "w") as f:
+                    f.write(cron_content)
+            else:
+                if os.path.exists(cron_file):
+                    os.remove(cron_file)
+        except Exception:
+            pass
+    return cfg["scheduled_reboot"]
 
 def get_soc_temperature() -> float:
     """Read temperature from SBC thermal zone."""
@@ -61,6 +120,7 @@ def get_system_metrics() -> Dict[str, Any]:
     disk = psutil.disk_usage('/')
     temp = get_soc_temperature()
     gov = get_cpu_governor()
+    sys_cfg = get_system_config()
 
     # Check thermal throttling state (temp > 75C or kernel flags)
     is_throttled = temp > 75.0
@@ -79,7 +139,8 @@ def get_system_metrics() -> Dict[str, Any]:
             "percent": round(disk.percent, 1)
         },
         "governor": gov,
-        "throttled": is_throttled
+        "throttled": is_throttled,
+        "scheduled_reboot": sys_cfg.get("scheduled_reboot", {})
     }
 
 def reboot_system():

@@ -16,34 +16,45 @@ from backend.auth import (
 )
 from backend.system import (
     GovernorRequest,
+    ScheduledRebootRequest,
     get_system_metrics,
     set_cpu_governor,
+    set_scheduled_reboot,
     reboot_system,
     shutdown_system
 )
 from backend.network import (
     NetworkModeRequest,
-    LanConfigRequest,
+    LanScopeConfig,
+    WifiApConfig,
     WanConfigRequest,
+    WanWifiConnectRequest,
     get_network_config,
     save_network_config,
+    get_ip_details,
     apply_network_mode,
     get_dhcp_clients,
-    scan_wifi_networks
+    scan_wifi_networks,
+    connect_wan_wifi
 )
 from backend.dns_engine import (
     DnsToggleRequest,
     DomainRuleRequest,
     FilterListRequest,
+    FilterScheduleRequest,
     get_dns_config,
     save_dns_config,
+    add_filter_list,
+    remove_filter_list,
     sync_adblock_filters,
     get_dns_query_logs
 )
 from backend.vpn import (
     VpnToggleRequest,
     ProfileUploadRequest,
+    ProfileImportRawRequest,
     get_vpn_state,
+    save_vpn_profile,
     toggle_vpn
 )
 from backend.warp import generate_cloudflare_warp_key, check_and_renew_warp_key
@@ -132,6 +143,12 @@ async def set_governor(req: GovernorRequest, token: str = Depends(verify_session
     log_event("INFO", f"CPU Governor updated to {req.governor}")
     return {"status": "success", "governor": req.governor}
 
+@app.post("/api/system/scheduled-reboot")
+async def schedule_reboot(req: ScheduledRebootRequest, token: str = Depends(verify_session)):
+    res = set_scheduled_reboot(req.enabled, req.time, req.frequency)
+    log_event("INFO", f"Scheduled reboot updated: enabled={req.enabled}, time={req.time}")
+    return {"status": "success", "scheduled_reboot": res}
+
 @app.post("/api/system/reboot")
 async def reboot(token: str = Depends(verify_session)):
     log_event("WARNING", "System reboot initiated via API.")
@@ -149,6 +166,10 @@ async def shutdown(token: str = Depends(verify_session)):
 async def network_status(token: str = Depends(verify_session)):
     return get_network_config()
 
+@app.get("/api/network/ip-details")
+async def ip_details(token: str = Depends(verify_session)):
+    return get_ip_details()
+
 @app.post("/api/network/mode")
 async def switch_mode(req: NetworkModeRequest, token: str = Depends(verify_session)):
     if req.mode not in ["A", "B", "C", "D"]:
@@ -159,14 +180,27 @@ async def switch_mode(req: NetworkModeRequest, token: str = Depends(verify_sessi
     log_event("INFO", f"Operation Mode switched to Mode {req.mode}")
     return {"status": "success", "mode": req.mode}
 
-@app.post("/api/network/lan")
-async def configure_lan(req: LanConfigRequest, token: str = Depends(verify_session)):
+@app.post("/api/network/lan-scope")
+async def configure_lan_scope(req: LanScopeConfig, token: str = Depends(verify_session)):
     cfg = get_network_config()
-    cfg["lan"].update(req.dict())
+    cfg["lan"]["ip"] = req.ip
+    cfg["lan"]["dhcp_start"] = req.dhcp_start
+    cfg["lan"]["dhcp_end"] = req.dhcp_end
     save_network_config(cfg)
     apply_network_mode(cfg["mode"])
-    log_event("INFO", f"LAN Gateway IP updated to {req.ip}")
+    log_event("INFO", f"LAN Gateway IP and DHCP Scope updated to {req.ip}")
     return {"status": "success", "lan": cfg["lan"]}
+
+@app.post("/api/network/wifi-ap")
+async def configure_wifi_ap(req: WifiApConfig, token: str = Depends(verify_session)):
+    cfg = get_network_config()
+    cfg["lan"]["ssid"] = req.ssid
+    cfg["lan"]["password"] = req.password
+    cfg["lan"]["channel"] = req.channel
+    save_network_config(cfg)
+    apply_network_mode(cfg["mode"])
+    log_event("INFO", f"Wi-Fi AP SSID updated to {req.ssid}")
+    return {"status": "success", "wifi": cfg["lan"]}
 
 @app.get("/api/network/dhcp-clients")
 async def dhcp_clients(token: str = Depends(verify_session)):
@@ -176,7 +210,15 @@ async def dhcp_clients(token: str = Depends(verify_session)):
 async def wifi_scan(iface: str = "wlan0", token: str = Depends(verify_session)):
     return scan_wifi_networks(iface)
 
-# --- VPN Gateway Endpoints ---
+@app.post("/api/network/wifi-connect")
+async def wifi_connect(req: WanWifiConnectRequest, token: str = Depends(verify_session)):
+    success = connect_wan_wifi(req.ssid, req.password)
+    if not success:
+        raise HTTPException(status_code=500, detail=f"Failed to connect WAN to Wi-Fi SSID '{req.ssid}'")
+    log_event("INFO", f"WAN uplink connected to Wi-Fi SSID '{req.ssid}'")
+    return {"status": "success", "ssid": req.ssid}
+
+# --- VPN Client Endpoints ---
 @app.get("/api/vpn/status")
 async def vpn_status(token: str = Depends(verify_session)):
     return get_vpn_state()
@@ -185,6 +227,19 @@ async def vpn_status(token: str = Depends(verify_session)):
 async def vpn_toggle(req: VpnToggleRequest, token: str = Depends(verify_session)):
     res = toggle_vpn(req.enabled, req.protocol, req.kill_switch)
     log_event("INFO", f"VPN routing toggled: enabled={req.enabled}, protocol={req.protocol}")
+    return res
+
+@app.post("/api/vpn/profile/upload")
+async def vpn_profile_upload(req: ProfileUploadRequest, token: str = Depends(verify_session)):
+    res = save_vpn_profile(req.protocol, req.filename, req.content)
+    log_event("INFO", f"VPN profile uploaded for protocol {req.protocol}: {req.filename}")
+    return res
+
+@app.post("/api/vpn/profile/raw")
+async def vpn_profile_raw(req: ProfileImportRawRequest, token: str = Depends(verify_session)):
+    fn = f"{req.protocol}_custom.conf"
+    res = save_vpn_profile(req.protocol, fn, req.content)
+    log_event("INFO", f"VPN raw configuration imported for protocol {req.protocol}")
     return res
 
 @app.post("/api/vpn/warp/generate")
@@ -217,6 +272,18 @@ async def dns_toggle(req: DnsToggleRequest, token: str = Depends(verify_session)
 @app.get("/api/dns/logs")
 async def dns_logs(token: str = Depends(verify_session)):
     return get_dns_query_logs()
+
+@app.post("/api/dns/filter-list/add")
+async def dns_add_filter_list(req: FilterListRequest, token: str = Depends(verify_session)):
+    cfg = add_filter_list(req.url)
+    log_event("INFO", f"Added adblock filter list URL: {req.url}")
+    return {"status": "success", "blocklist_urls": cfg.get("blocklist_urls", [])}
+
+@app.post("/api/dns/filter-list/remove")
+async def dns_remove_filter_list(req: FilterListRequest, token: str = Depends(verify_session)):
+    cfg = remove_filter_list(req.url)
+    log_event("INFO", f"Removed adblock filter list URL: {req.url}")
+    return {"status": "success", "blocklist_urls": cfg.get("blocklist_urls", [])}
 
 @app.post("/api/dns/sync-filters")
 async def dns_sync(token: str = Depends(verify_session)):

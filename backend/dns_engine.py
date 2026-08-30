@@ -20,6 +20,10 @@ class DomainRuleRequest(BaseModel):
 class FilterListRequest(BaseModel):
     url: str
 
+class FilterScheduleRequest(BaseModel):
+    auto_sync: bool
+    interval_hours: int = 12
+
 DEFAULT_DNS_CONFIG = {
     "enabled": True,
     "blocklist_urls": [
@@ -28,7 +32,10 @@ DEFAULT_DNS_CONFIG = {
     ],
     "whitelist": ["example.com", "google.com", "cloudflare.com"],
     "blacklist": ["malicious-example.com", "phishing-test.org"],
-    "total_blocked_count": 85420
+    "total_blocked_count": 85420,
+    "auto_sync": True,
+    "sync_interval_hours": 12,
+    "last_sync_timestamp": "2026-08-30 11:00:00"
 }
 
 def get_dns_config() -> Dict[str, Any]:
@@ -47,6 +54,23 @@ def save_dns_config(cfg: Dict[str, Any]):
     os.makedirs(CONFIG_DIR, exist_ok=True)
     with open(DNS_CONFIG_FILE, "w") as f:
         json.dump(cfg, f, indent=2)
+
+def add_filter_list(url: str) -> Dict[str, Any]:
+    cfg = get_dns_config()
+    if "blocklist_urls" not in cfg or not isinstance(cfg["blocklist_urls"], list):
+        cfg["blocklist_urls"] = []
+    if url not in cfg["blocklist_urls"]:
+        cfg["blocklist_urls"].append(url)
+        save_dns_config(cfg)
+    return cfg
+
+def remove_filter_list(url: str) -> Dict[str, Any]:
+    cfg = get_dns_config()
+    if "blocklist_urls" in cfg and isinstance(cfg["blocklist_urls"], list):
+        if url in cfg["blocklist_urls"]:
+            cfg["blocklist_urls"].remove(url)
+            save_dns_config(cfg)
+    return cfg
 
 def sync_adblock_filters() -> int:
     cfg = get_dns_config()
@@ -71,6 +95,7 @@ def sync_adblock_filters() -> int:
 
     truncated_domains = list(blocked_domains)[:50000]
     cfg["total_blocked_count"] = len(truncated_domains)
+    cfg["last_sync_timestamp"] = time.strftime("%Y-%m-%d %H:%M:%S")
     save_dns_config(cfg)
 
     os.makedirs(os.path.dirname(BLOCKLIST_FILE), exist_ok=True)

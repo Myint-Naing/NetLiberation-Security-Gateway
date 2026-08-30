@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 CONFIG_DIR = "/etc/netliberation" if os.access("/etc", os.W_OK) else "/tmp/netliberation"
 VPN_STATE_FILE = os.path.join(CONFIG_DIR, "vpn_state.json")
+PROFILES_DIR = os.path.join(CONFIG_DIR, "vpn_profiles")
 
 class VpnToggleRequest(BaseModel):
     enabled: bool
@@ -19,8 +20,13 @@ class ProfileUploadRequest(BaseModel):
     filename: str
     content: str
 
+class ProfileImportRawRequest(BaseModel):
+    protocol: str
+    content: str
+
 def get_vpn_state() -> Dict[str, Any]:
     os.makedirs(CONFIG_DIR, exist_ok=True)
+    os.makedirs(PROFILES_DIR, exist_ok=True)
     if not os.path.exists(VPN_STATE_FILE):
         default_state = {
             "enabled": False,
@@ -31,7 +37,8 @@ def get_vpn_state() -> Dict[str, Any]:
             "public_ip": "Direct WAN (Unencrypted)",
             "handshake_time": "N/A",
             "tx_bytes": 0,
-            "rx_bytes": 0
+            "rx_bytes": 0,
+            "profiles": ["warp.conf", "outline_active.json"]
         }
         with open(VPN_STATE_FILE, "w") as f:
             json.dump(default_state, f, indent=2)
@@ -63,6 +70,27 @@ def set_vpn_routing_rules(enabled: bool, protocol: str, kill_switch: bool = True
             subprocess.run(["sudo", "iptables", "-D", "FORWARD", "-o", "wlan1", "-j", "DROP"], check=False)
     except Exception:
         pass
+
+def save_vpn_profile(protocol: str, filename: str, content: str) -> Dict[str, Any]:
+    os.makedirs(PROFILES_DIR, exist_ok=True)
+    clean_fn = "".join([c for c in filename if c.isalnum() or c in (".", "_", "-")])
+    if not clean_fn:
+        clean_fn = f"{protocol}_profile.conf"
+
+    filepath = os.path.join(PROFILES_DIR, clean_fn)
+    with open(filepath, "w") as f:
+        f.write(content)
+
+    state = get_vpn_state()
+    state["active_protocol"] = protocol
+    state["active_profile"] = clean_fn
+    if "profiles" not in state or not isinstance(state["profiles"], list):
+        state["profiles"] = []
+    if clean_fn not in state["profiles"]:
+        state["profiles"].append(clean_fn)
+
+    save_vpn_state(state)
+    return {"status": "success", "protocol": protocol, "profile": clean_fn, "filepath": filepath}
 
 def toggle_vpn(enabled: bool, protocol: str = "wireguard", kill_switch: bool = True) -> Dict[str, Any]:
     state = get_vpn_state()

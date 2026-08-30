@@ -2,6 +2,11 @@
 const API_BASE = '/api';
 let authToken = localStorage.getItem('token') || '';
 
+function toggleMobileMenu() {
+  const links = document.getElementById('main-nav-links');
+  if (links) links.classList.toggle('open');
+}
+
 function switchTab(tabId) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
@@ -11,6 +16,10 @@ function switchTab(tabId) {
 
   const navTab = document.querySelector(`.nav-tab[onclick*="'${tabId}'"]`);
   if (navTab) navTab.classList.add('active');
+
+  // Close mobile drawer on tab click
+  const links = document.getElementById('main-nav-links');
+  if (links) links.classList.remove('open');
 
   if (tabId === 'dashboard') loadDashboardData();
   if (tabId === 'network') loadNetworkConfig();
@@ -93,6 +102,13 @@ async function loadDashboardData() {
     }
   }
 
+  const ipInfo = await apiRequest('/network/ip-details');
+  if (ipInfo) {
+    document.getElementById('val-wan-ip').innerText = ipInfo.wan_ip;
+    document.getElementById('val-lan-ip').innerText = ipInfo.lan_ip;
+    document.getElementById('val-remote-vpn-ip').innerText = ipInfo.vpn_ip;
+  }
+
   const vpn = await apiRequest('/vpn/status');
   if (vpn) {
     document.getElementById('val-vpn-status').innerText = vpn.status;
@@ -139,7 +155,11 @@ async function loadNetworkConfig() {
   if (net) {
     document.getElementById('select-op-mode').value = net.mode;
     document.getElementById('input-lan-ip').value = net.lan.ip;
+    document.getElementById('input-dhcp-start').value = net.lan.dhcp_start || '192.168.200.20';
+    document.getElementById('input-dhcp-end').value = net.lan.dhcp_end || '192.168.200.200';
     document.getElementById('input-wifi-ssid').value = net.lan.ssid;
+    document.getElementById('input-wifi-pass').value = net.lan.password || 'Freedom4all';
+    document.getElementById('select-wifi-channel').value = net.lan.channel || 6;
   }
 }
 
@@ -149,12 +169,20 @@ async function applyOperationMode() {
   if (res) alert(`Operation Mode ${mode} applied successfully!`);
 }
 
-async function saveLanSettings() {
+async function saveLanScopeSettings() {
   const ip = document.getElementById('input-lan-ip').value;
+  const dhcp_start = document.getElementById('input-dhcp-start').value;
+  const dhcp_end = document.getElementById('input-dhcp-end').value;
+  const res = await apiRequest('/network/lan-scope', 'POST', { ip, dhcp_start, dhcp_end });
+  if (res) alert('LAN Configuration Scope saved successfully!');
+}
+
+async function saveWifiApSettings() {
   const ssid = document.getElementById('input-wifi-ssid').value;
   const password = document.getElementById('input-wifi-pass').value;
-  const res = await apiRequest('/network/lan', 'POST', { ip, ssid, password });
-  if (res) alert('LAN Configuration saved successfully!');
+  const channel = parseInt(document.getElementById('select-wifi-channel').value, 10);
+  const res = await apiRequest('/network/wifi-ap', 'POST', { ssid, password, channel });
+  if (res) alert('Wi-Fi Access Point Settings saved successfully!');
 }
 
 async function scanWifiNetworks() {
@@ -182,12 +210,38 @@ function selectWifiSsid(ssid) {
 
 async function connectWanWifi() {
   const ssid = document.getElementById('input-wan-wifi-ssid').value;
-  const pass = document.getElementById('input-wan-wifi-pass').value;
+  const password = document.getElementById('input-wan-wifi-pass').value;
   if (!ssid) return alert('Please enter or select a Wi-Fi SSID');
-  alert(`Connecting WAN uplink to Wi-Fi AP '${ssid}'...`);
+  const res = await apiRequest('/network/wifi-connect', 'POST', { ssid, password });
+  if (res) alert(`WAN uplink connected to Wi-Fi SSID '${ssid}' successfully!`);
 }
 
-// --- Tab 3: VPN Gateway Functions ---
+// --- Tab 3: VPN Client Functions ---
+function updateVpnProtocolFields() {
+  const proto = document.getElementById('select-vpn-protocol').value;
+  const labelFile = document.getElementById('label-vpn-file');
+  const labelRaw = document.getElementById('label-vpn-raw');
+  const rawInput = document.getElementById('input-vpn-raw');
+
+  if (proto === 'wireguard') {
+    labelFile.innerText = 'Upload WireGuard Profile (.conf)';
+    labelRaw.innerText = 'Or Paste WireGuard Configuration File Content';
+    rawInput.placeholder = '[Interface]\nPrivateKey = ...\nAddress = ...\n[Peer]\nPublicKey = ...';
+  } else if (proto === 'openvpn') {
+    labelFile.innerText = 'Upload OpenVPN Profile (.ovpn)';
+    labelRaw.innerText = 'Or Paste OpenVPN Configuration File Content';
+    rawInput.placeholder = 'client\ndev tun\nproto udp\nremote my-server.com 1194...';
+  } else if (proto === 'l2tp') {
+    labelFile.innerText = 'Upload L2TP/IPsec Configuration';
+    labelRaw.innerText = 'Or Paste L2TP Server, IPSec PSK & Credentials';
+    rawInput.placeholder = 'Server = 1.2.3.4\nPSK = secret\nUsername = user\nPassword = pass';
+  } else if (proto === 'shadowsocks') {
+    labelFile.innerText = 'Upload Shadowsocks JSON Config';
+    labelRaw.innerText = 'Or Paste Shadowsocks ss:// URI Key / Base64 Payload';
+    rawInput.placeholder = 'ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNjpwYXNzQDEuMi4zLjQ6ODM4OA==#OutlineServer';
+  }
+}
+
 async function loadVpnConfig() {
   const vpn = await apiRequest('/vpn/status');
   if (vpn) {
@@ -195,6 +249,7 @@ async function loadVpnConfig() {
     btn.innerText = vpn.enabled ? 'Disable VPN Tunnel' : 'Enable VPN Tunnel';
     btn.className = vpn.enabled ? 'btn btn-danger' : 'btn btn-primary';
     document.getElementById('select-vpn-protocol').value = vpn.active_protocol || 'wireguard';
+    updateVpnProtocolFields();
   }
 }
 
@@ -231,6 +286,7 @@ async function fetchOutlineKey() {
 }
 
 async function uploadVpnProfile() {
+  const proto = document.getElementById('select-vpn-protocol').value;
   const fileInput = document.getElementById('input-vpn-file');
   const textInput = document.getElementById('input-vpn-raw');
   const metaBox = document.getElementById('box-vpn-meta');
@@ -238,20 +294,24 @@ async function uploadVpnProfile() {
   if (fileInput.files.length > 0) {
     const file = fileInput.files[0];
     const reader = new FileReader();
-    reader.onload = function(e) {
-      metaBox.innerText = `Uploaded VPN Profile '${file.name}':\n` + e.target.result;
+    reader.onload = async function(e) {
+      const content = e.target.result;
+      const res = await apiRequest('/api/vpn/profile/upload', 'POST', { protocol: proto, filename: file.name, content });
+      metaBox.innerText = `Uploaded VPN Profile '${file.name}' for protocol '${proto}':\n` + content;
       alert(`VPN Profile '${file.name}' imported successfully!`);
     };
     reader.readAsText(file);
   } else if (textInput.value.trim().length > 0) {
-    metaBox.innerText = 'Imported Custom Config / Key:\n' + textInput.value;
-    alert('VPN Credentials / Config imported successfully!');
+    const content = textInput.value.trim();
+    const res = await apiRequest('/api/vpn/profile/raw', 'POST', { protocol: proto, content });
+    metaBox.innerText = `Imported Custom Config for protocol '${proto}':\n` + content;
+    alert(`VPN Credentials / Config for '${proto}' imported successfully!`);
   } else {
-    alert('Please select a .conf / .ovpn file or enter manual configuration credentials.');
+    alert('Please select a file or enter configuration credentials.');
   }
 }
 
-// --- Tab 4: Security & DNS Blocker Functions ---
+// --- Tab 4: Security Functions ---
 async function loadSecurityConfig() {
   const dns = await apiRequest('/dns/status');
   if (dns) {
@@ -259,6 +319,34 @@ async function loadSecurityConfig() {
     const btn = document.getElementById('btn-dns-toggle');
     btn.innerText = dns.enabled ? 'Master Blocker: Enabled' : 'Master Blocker: Disabled';
     btn.className = dns.enabled ? 'btn btn-primary' : 'btn btn-danger';
+
+    const box = document.getElementById('box-filter-feeds');
+    if (box && dns.blocklist_urls) {
+      box.innerHTML = dns.blocklist_urls.map(url => `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.2rem;">
+          <span style="font-size: 0.8rem; word-break: break-all;">${url}</span>
+          <button class="btn btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; min-height: auto;" onclick="removeFilterFeedUrl('${url}')">Remove</button>
+        </div>
+      `).join('');
+    }
+  }
+}
+
+async function addFilterFeedUrl() {
+  const url = document.getElementById('input-filter-url').value.trim();
+  if (!url) return alert('Please enter a filter list URL');
+  const res = await apiRequest('/dns/filter-list/add', 'POST', { url });
+  if (res) {
+    document.getElementById('input-filter-url').value = '';
+    loadSecurityConfig();
+    alert('Adblock filter list URL added successfully!');
+  }
+}
+
+async function removeFilterFeedUrl(url) {
+  if (confirm(`Remove filter feed '${url}'?`)) {
+    const res = await apiRequest('/dns/filter-list/remove', 'POST', { url });
+    if (res) loadSecurityConfig();
   }
 }
 
@@ -305,6 +393,13 @@ async function changeGovernor() {
   if (res) alert(`CPU Governor switched to ${governor}`);
 }
 
+async function saveScheduledReboot() {
+  const enabled = document.getElementById('chk-sched-reboot').checked;
+  const timeStr = document.getElementById('time-sched-reboot').value;
+  const res = await apiRequest('/system/scheduled-reboot', 'POST', { enabled, time: timeStr, frequency: 'daily' });
+  if (res) alert(`Scheduled reboot configuration updated!`);
+}
+
 async function rebootSystem() {
   if (confirm('Are you sure you want to reboot the NetLiberation Gateway?')) {
     await apiRequest('/system/reboot', 'POST');
@@ -319,33 +414,33 @@ async function shutdownSystem() {
   }
 }
 
-// --- Tab 6: Diagnostics Functions ---
+// --- Tab 6: Tools Functions ---
 async function runPingTool() {
-  const target = document.getElementById('input-tool-target').value;
-  const box = document.getElementById('box-tool-output');
+  const target = document.getElementById('input-ping-target').value;
+  const box = document.getElementById('box-ping-output');
   box.innerText = `Executing Ping to ${target}...`;
   const res = await apiRequest('/tools/ping', 'POST', { target, count: 4 });
   if (res) box.innerText = res.output;
 }
 
 async function runTracerouteTool() {
-  const target = document.getElementById('input-tool-target').value;
-  const box = document.getElementById('box-tool-output');
+  const target = document.getElementById('input-trace-target').value;
+  const box = document.getElementById('box-trace-output');
   box.innerText = `Executing Traceroute to ${target}...`;
   const res = await apiRequest('/tools/traceroute', 'POST', { target });
   if (res) box.innerText = res.output;
 }
 
 async function runNslookupTool() {
-  const domain = document.getElementById('input-tool-target').value;
-  const box = document.getElementById('box-tool-output');
+  const domain = document.getElementById('input-lookup-domain').value;
+  const box = document.getElementById('box-lookup-output');
   box.innerText = `Executing Nslookup for ${domain}...`;
   const res = await apiRequest('/tools/nslookup', 'POST', { domain });
   if (res) box.innerText = res.output;
 }
 
 async function runSpeedtestTool() {
-  const box = document.getElementById('box-tool-output');
+  const box = document.getElementById('box-speedtest-output');
   box.innerText = 'Running Speedtest benchmark (Download/Upload speed test)...';
   const res = await apiRequest('/tools/speedtest', 'POST');
   if (res) {
@@ -358,11 +453,12 @@ Server: ${d.server.name} (${d.server.country})`;
   }
 }
 
-// Polling interval for dashboard
+// Auto Refresh Intervals
 setInterval(() => {
   const activeTab = document.querySelector('.tab-content.active');
-  if (activeTab && activeTab.id === 'tab-dashboard' && authToken) {
-    loadDashboardData();
+  if (activeTab && authToken) {
+    if (activeTab.id === 'tab-dashboard') loadDashboardData();
+    if (activeTab.id === 'tab-admin') loadSystemLogs();
   }
 }, 3000);
 
