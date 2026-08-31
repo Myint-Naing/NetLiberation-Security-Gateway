@@ -105,15 +105,16 @@ def fetch_active_outline_key() -> Dict[str, Any]:
         with open(OUTLINE_CONF_PATH, "w") as f:
             json.dump(shadowsocks_json, f, indent=2)
 
-        os.makedirs(PROFILES_DIR, exist_ok=True)
-        outline_profile_imported = os.path.join(PROFILES_DIR, "outline.json")
-        with open(outline_profile_imported, "w") as f:
-            json.dump(shadowsocks_json, f, indent=2)
-
         import urllib.parse
         raw_tag = ss_config.get("tag", "US")
         clean_tag = urllib.parse.unquote(raw_tag)
         country = clean_tag.split()[0] if clean_tag else "US"
+
+        os.makedirs(PROFILES_DIR, exist_ok=True)
+        profile_filename = f"{country}.json"
+        outline_profile_imported = os.path.join(PROFILES_DIR, profile_filename)
+        with open(outline_profile_imported, "w") as f:
+            json.dump(shadowsocks_json, f, indent=2)
 
         base_uri = found_ss_uri.split("#")[0] if "#" in found_ss_uri else found_ss_uri
         formatted_ss_uri = f"{base_uri}#{country}%20NetLiberation"

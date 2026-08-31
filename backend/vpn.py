@@ -75,6 +75,10 @@ def save_vpn_state(state: Dict[str, Any]):
 def set_vpn_routing_rules(enabled: bool, protocol: str, kill_switch: bool = True):
     tun_iface = "wg0" if protocol == "wireguard" else "tun0"
     try:
+        # Cleanly remove any lingering DROP rules in FORWARD
+        for dev in ["eth0", "wlan0", "wlan1", "wlx*"]:
+            subprocess.run(["sudo", "iptables", "-D", "FORWARD", "-o", dev, "-j", "DROP"], check=False)
+
         # Always explicitly allow SSH (Port 22) on INPUT
         subprocess.run(["sudo", "iptables", "-A", "INPUT", "-p", "tcp", "--dport", "22", "-j", "ACCEPT"], check=False)
 
@@ -86,10 +90,6 @@ def set_vpn_routing_rules(enabled: bool, protocol: str, kill_switch: bool = True
                     subprocess.run(["sudo", "iptables", "-A", "FORWARD", "-o", "eth0", "-j", "DROP"], check=False)
                     subprocess.run(["sudo", "iptables", "-A", "FORWARD", "-o", "wlan0", "-j", "DROP"], check=False)
                     subprocess.run(["sudo", "iptables", "-A", "FORWARD", "-o", "wlan1", "-j", "DROP"], check=False)
-            else:
-                subprocess.run(["sudo", "iptables", "-D", "FORWARD", "-o", "eth0", "-j", "DROP"], check=False)
-                subprocess.run(["sudo", "iptables", "-D", "FORWARD", "-o", "wlan0", "-j", "DROP"], check=False)
-                subprocess.run(["sudo", "iptables", "-D", "FORWARD", "-o", "wlan1", "-j", "DROP"], check=False)
         elif protocol == "shadowsocks":
             subprocess.run(["sudo", "iptables", "-t", "nat", "-D", "PREROUTING", "-p", "tcp", "-j", "SHADOWSOCKS"], check=False)
             subprocess.run(["sudo", "iptables", "-t", "nat", "-F", "SHADOWSOCKS"], check=False)

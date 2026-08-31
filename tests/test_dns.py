@@ -6,6 +6,7 @@ def test_dns_config_and_sync():
     assert "enabled" in cfg
     assert isinstance(cfg["whitelist"], list)
     assert isinstance(cfg["blacklist"], list)
+    assert "https://big.oisd.nl" in cfg["blocklist_urls"]
 
     count = sync_adblock_filters()
     assert count >= 0

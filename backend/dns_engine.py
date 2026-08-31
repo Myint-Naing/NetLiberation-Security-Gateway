@@ -27,8 +27,12 @@ class FilterScheduleRequest(BaseModel):
 DEFAULT_DNS_CONFIG = {
     "enabled": True,
     "blocklist_urls": [
+        "https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt",
+        "https://big.oisd.nl",
+        "https://pgl.yoyo.org/adservers/serverlist.php?hostformat=adblockplus&showintro=0&mimetype=plaintext",
         "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts",
-        "https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt"
+        "https://adguardteam.github.io/HostlistsRegistry/assets/filter_30.txt",
+        "https://adguardteam.github.io/HostlistsRegistry/assets/filter_11.txt"
     ],
     "whitelist": ["example.com", "google.com", "cloudflare.com"],
     "blacklist": ["malicious-example.com", "phishing-test.org"],
@@ -46,7 +50,12 @@ def get_dns_config() -> Dict[str, Any]:
         return DEFAULT_DNS_CONFIG
     try:
         with open(DNS_CONFIG_FILE, "r") as f:
-            return json.load(f)
+            cfg = json.load(f)
+            # Ensure new default blocklists are merged
+            for url in DEFAULT_DNS_CONFIG["blocklist_urls"]:
+                if url not in cfg.get("blocklist_urls", []):
+                    cfg.setdefault("blocklist_urls", []).append(url)
+            return cfg
     except Exception:
         return DEFAULT_DNS_CONFIG
 

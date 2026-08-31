@@ -272,8 +272,9 @@ async def vpn_outline_fetch(token: str = Depends(verify_session)):
     res = fetch_active_outline_key()
     if "config" in res:
         try:
+            country = res.get("meta", {}).get("country", "Outline")
             content = json.dumps(res["config"], indent=2)
-            save_vpn_profile("shadowsocks", "outline.json", content)
+            save_vpn_profile("shadowsocks", f"{country}.json", content)
         except Exception:
             pass
     toggle_vpn(True, "shadowsocks", True)
