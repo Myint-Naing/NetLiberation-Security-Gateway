@@ -91,10 +91,28 @@ def set_vpn_routing_rules(enabled: bool, protocol: str, kill_switch: bool = True
                 subprocess.run(["sudo", "iptables", "-D", "FORWARD", "-o", "wlan0", "-j", "DROP"], check=False)
                 subprocess.run(["sudo", "iptables", "-D", "FORWARD", "-o", "wlan1", "-j", "DROP"], check=False)
         elif protocol == "shadowsocks":
-            subprocess.run(["sudo", "iptables", "-t", "nat", "-D", "PREROUTING", "-p", "tcp", "!", "--dport", "22", "-j", "REDIRECT", "--to-ports", "1080"], check=False)
-            subprocess.run(["sudo", "iptables", "-t", "nat", "-D", "PREROUTING", "-p", "tcp", "-j", "REDIRECT", "--to-ports", "1080"], check=False)
+            subprocess.run(["sudo", "iptables", "-t", "nat", "-D", "PREROUTING", "-p", "tcp", "-j", "SHADOWSOCKS"], check=False)
+            subprocess.run(["sudo", "iptables", "-t", "nat", "-F", "SHADOWSOCKS"], check=False)
+            subprocess.run(["sudo", "iptables", "-t", "nat", "-X", "SHADOWSOCKS"], check=False)
+
             if enabled:
-                subprocess.run(["sudo", "iptables", "-t", "nat", "-A", "PREROUTING", "-p", "tcp", "!", "--dport", "22", "-j", "REDIRECT", "--to-ports", "1080"], check=False)
+                # Create dedicated SHADOWSOCKS NAT chain
+                subprocess.run(["sudo", "iptables", "-t", "nat", "-N", "SHADOWSOCKS"], check=False)
+
+                # Exclude local Loopback and Private Gateway Subnets (LAN / Web UI) from redirect
+                subprocess.run(["sudo", "iptables", "-t", "nat", "-A", "SHADOWSOCKS", "-d", "127.0.0.0/8", "-j", "RETURN"], check=False)
+                subprocess.run(["sudo", "iptables", "-t", "nat", "-A", "SHADOWSOCKS", "-d", "192.168.0.0/16", "-j", "RETURN"], check=False)
+                subprocess.run(["sudo", "iptables", "-t", "nat", "-A", "SHADOWSOCKS", "-d", "10.0.0.0/8", "-j", "RETURN"], check=False)
+                subprocess.run(["sudo", "iptables", "-t", "nat", "-A", "SHADOWSOCKS", "-d", "172.16.0.0/12", "-j", "RETURN"], check=False)
+
+                # Exclude Management Web UI (Port 80/443), SSH (Port 22), DNS (Port 53), DHCP (Port 67/68)
+                for port in ["80", "443", "22", "53", "67", "68"]:
+                    subprocess.run(["sudo", "iptables", "-t", "nat", "-A", "SHADOWSOCKS", "-p", "tcp", "--dport", port, "-j", "RETURN"], check=False)
+                    subprocess.run(["sudo", "iptables", "-t", "nat", "-A", "SHADOWSOCKS", "-p", "udp", "--dport", port, "-j", "RETURN"], check=False)
+
+                # Redirect remaining outbound TCP traffic to Shadowsocks transparent proxy on port 1080
+                subprocess.run(["sudo", "iptables", "-t", "nat", "-A", "SHADOWSOCKS", "-p", "tcp", "-j", "REDIRECT", "--to-ports", "1080"], check=False)
+                subprocess.run(["sudo", "iptables", "-t", "nat", "-A", "PREROUTING", "-p", "tcp", "-j", "SHADOWSOCKS"], check=False)
     except Exception:
         pass
 
@@ -154,7 +172,10 @@ def start_vpn_process(protocol: str):
         elif protocol == "shadowsocks":
             outline_conf = os.path.join(CONFIG_DIR, "outline.json")
             if os.path.exists(outline_conf):
-                subprocess.run(["sudo", "ss-local", "-c", outline_conf, "-f", "/tmp/ss-local.pid"], check=False)
+                # Try ss-redir for transparent proxying, falling back to ss-local
+                res = subprocess.run(["sudo", "ss-redir", "-c", outline_conf, "-l", "1080", "-f", "/tmp/ss-redir.pid"], check=False)
+                if res.returncode != 0:
+                    subprocess.run(["sudo", "ss-local", "-c", outline_conf, "-l", "1080", "-f", "/tmp/ss-local.pid"], check=False)
     except Exception:
         pass
 
@@ -164,6 +185,7 @@ def stop_vpn_process():
         if os.path.exists(warp_conf):
             subprocess.run(["sudo", "wg-quick", "down", warp_conf], check=False)
         subprocess.run(["sudo", "pkill", "-f", "openvpn"], check=False)
+        subprocess.run(["sudo", "pkill", "-f", "ss-redir"], check=False)
         subprocess.run(["sudo", "pkill", "-f", "ss-local"], check=False)
     except Exception:
         pass
