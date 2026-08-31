@@ -282,11 +282,12 @@ def apply_network_mode(mode: str) -> bool:
         except Exception:
             pass
 
-    # 7. Set iptables NAT forwarding rules
+    # 7. Set iptables NAT forwarding rules & allow SSH on WAN/LAN
     try:
         run_cmd(["iptables", "-t", "nat", "-F"])
         run_cmd(["iptables", "-t", "nat", "-A", "POSTROUTING", "-o", wan_iface, "-j", "MASQUERADE"])
         run_cmd(["iptables", "-A", "FORWARD", "-i", lan_iface, "-o", wan_iface, "-j", "ACCEPT"])
+        run_cmd(["iptables", "-A", "INPUT", "-p", "tcp", "--dport", "22", "-j", "ACCEPT"])
         run_cmd(["sysctl", "-w", "net.ipv4.ip_forward=1"])
     except Exception:
         pass

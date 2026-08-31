@@ -75,6 +75,9 @@ def save_vpn_state(state: Dict[str, Any]):
 def set_vpn_routing_rules(enabled: bool, protocol: str, kill_switch: bool = True):
     tun_iface = "wg0" if protocol == "wireguard" else "tun0"
     try:
+        # Always explicitly allow SSH (Port 22) on INPUT
+        subprocess.run(["sudo", "iptables", "-A", "INPUT", "-p", "tcp", "--dport", "22", "-j", "ACCEPT"], check=False)
+
         if protocol in ("wireguard", "openvpn", "l2tp"):
             subprocess.run(["sudo", "iptables", "-t", "nat", "-D", "POSTROUTING", "-o", tun_iface, "-j", "MASQUERADE"], check=False)
             if enabled:
@@ -88,9 +91,10 @@ def set_vpn_routing_rules(enabled: bool, protocol: str, kill_switch: bool = True
                 subprocess.run(["sudo", "iptables", "-D", "FORWARD", "-o", "wlan0", "-j", "DROP"], check=False)
                 subprocess.run(["sudo", "iptables", "-D", "FORWARD", "-o", "wlan1", "-j", "DROP"], check=False)
         elif protocol == "shadowsocks":
+            subprocess.run(["sudo", "iptables", "-t", "nat", "-D", "PREROUTING", "-p", "tcp", "!", "--dport", "22", "-j", "REDIRECT", "--to-ports", "1080"], check=False)
             subprocess.run(["sudo", "iptables", "-t", "nat", "-D", "PREROUTING", "-p", "tcp", "-j", "REDIRECT", "--to-ports", "1080"], check=False)
             if enabled:
-                subprocess.run(["sudo", "iptables", "-t", "nat", "-A", "PREROUTING", "-p", "tcp", "-j", "REDIRECT", "--to-ports", "1080"], check=False)
+                subprocess.run(["sudo", "iptables", "-t", "nat", "-A", "PREROUTING", "-p", "tcp", "!", "--dport", "22", "-j", "REDIRECT", "--to-ports", "1080"], check=False)
     except Exception:
         pass
 
