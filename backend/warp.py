@@ -5,6 +5,7 @@ import requests
 from typing import Dict, Any
 
 CONFIG_DIR = "/etc/netliberation" if os.access("/etc", os.W_OK) else "/tmp/netliberation"
+PROFILES_DIR = os.path.join(CONFIG_DIR, "vpn_profiles")
 WARP_PROFILE_PATH = os.path.join(CONFIG_DIR, "warp.conf")
 WARP_META_FILE = os.path.join(CONFIG_DIR, "warp_meta.json")
 
@@ -68,6 +69,11 @@ PersistentKeepalive = 25
             with open(WARP_PROFILE_PATH, "w") as f:
                 f.write(warp_conf)
 
+            os.makedirs(PROFILES_DIR, exist_ok=True)
+            warp_profile_imported = os.path.join(PROFILES_DIR, "warp.conf")
+            with open(warp_profile_imported, "w") as f:
+                f.write(warp_conf)
+
             meta = {
                 "account_id": account_id,
                 "created_at": time.time(),
@@ -95,6 +101,11 @@ AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
 """
     with open(WARP_PROFILE_PATH, "w") as f:
+        f.write(warp_conf)
+
+    os.makedirs(PROFILES_DIR, exist_ok=True)
+    warp_profile_imported = os.path.join(PROFILES_DIR, "warp.conf")
+    with open(warp_profile_imported, "w") as f:
         f.write(warp_conf)
 
     meta = {

@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 import os
+import json
 
 from backend.security import rate_limiter, login_rate_limiter, sanitize_input, validate_domain_or_ip
 from backend.auth import (
@@ -255,6 +256,13 @@ async def vpn_profile_select(req: ProfileSelectRequest, token: str = Depends(ver
 @app.post("/api/vpn/warp/generate")
 async def vpn_warp_generate(token: str = Depends(verify_session)):
     res = generate_cloudflare_warp_key()
+    if os.path.exists(res.get("profile_path", "")):
+        try:
+            with open(res["profile_path"], "r") as f:
+                content = f.read()
+            save_vpn_profile("wireguard", "warp.conf", content)
+        except Exception:
+            pass
     toggle_vpn(True, "wireguard", True)
     log_event("INFO", "Cloudflare WARP profile generated and activated.")
     return res
@@ -262,6 +270,12 @@ async def vpn_warp_generate(token: str = Depends(verify_session)):
 @app.post("/api/vpn/outline/fetch")
 async def vpn_outline_fetch(token: str = Depends(verify_session)):
     res = fetch_active_outline_key()
+    if "config" in res:
+        try:
+            content = json.dumps(res["config"], indent=2)
+            save_vpn_profile("shadowsocks", "outline.json", content)
+        except Exception:
+            pass
     toggle_vpn(True, "shadowsocks", True)
     log_event("INFO", "Outline server key fetched and activated.")
     return res

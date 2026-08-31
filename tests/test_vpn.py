@@ -17,6 +17,8 @@ def test_cloudflare_warp_generator():
     assert res["status"] == "success"
     assert "meta" in res
     assert res["meta"]["status"].startswith("Active")
+    state = get_vpn_state()
+    assert "warp.conf" in state["profiles"]
 
 def test_outline_ss_uri_parser():
     # Base64 of aes-256-gcm:Password123456
@@ -35,3 +37,5 @@ def test_outline_fetcher():
     assert "NetLiberation" in res["ss_uri"]
     assert "config" in res
     assert "meta" in res
+    state = get_vpn_state()
+    assert "outline.json" in state["profiles"]

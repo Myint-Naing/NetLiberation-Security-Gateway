@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 from typing import Dict, Any, Optional
 
 CONFIG_DIR = "/etc/netliberation" if os.access("/etc", os.W_OK) else "/tmp/netliberation"
+PROFILES_DIR = os.path.join(CONFIG_DIR, "vpn_profiles")
 OUTLINE_CONF_PATH = os.path.join(CONFIG_DIR, "outline.json")
 OUTLINE_META_FILE = os.path.join(CONFIG_DIR, "outline_meta.json")
 
@@ -102,6 +103,11 @@ def fetch_active_outline_key() -> Dict[str, Any]:
             "fast_open": False
         }
         with open(OUTLINE_CONF_PATH, "w") as f:
+            json.dump(shadowsocks_json, f, indent=2)
+
+        os.makedirs(PROFILES_DIR, exist_ok=True)
+        outline_profile_imported = os.path.join(PROFILES_DIR, "outline.json")
+        with open(outline_profile_imported, "w") as f:
             json.dump(shadowsocks_json, f, indent=2)
 
         import urllib.parse
