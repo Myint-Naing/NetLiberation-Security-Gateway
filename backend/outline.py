@@ -87,7 +87,7 @@ def fetch_active_outline_key() -> Dict[str, Any]:
         pass
 
     if not found_ss_uri:
-        found_ss_uri = "ss://YWFlcy0yNTYtZ2NtOlBhc3N3b3JkMTIzNDU2@185.220.101.5:8388#US-Outline-Gateway"
+        found_ss_uri = "ss://YWVzLTI1Ni1nY206UGFzc3dvcmQxMjM0NTY=@185.220.101.5:8388#US-Outline-Gateway"
 
     ss_config = parse_ss_uri(found_ss_uri)
     if ss_config:

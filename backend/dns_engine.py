@@ -106,6 +106,12 @@ def sync_adblock_filters() -> int:
     except Exception:
         pass
 
+    import subprocess
+    try:
+        subprocess.run(["sudo", "systemctl", "restart", "dnsmasq"], check=False)
+    except Exception:
+        pass
+
     return len(truncated_domains)
 
 def add_dns_query_log(domain: str, client_ip: str, status: str):

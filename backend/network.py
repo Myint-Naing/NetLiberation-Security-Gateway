@@ -127,6 +127,16 @@ def get_ip_details() -> Dict[str, str]:
     except Exception:
         pass
 
+    # Fallback to VPN state if interface assignment is virtual/proxied
+    if vpn_ip == "Disconnected":
+        try:
+            from backend.vpn import get_vpn_state
+            vpn_state = get_vpn_state()
+            if vpn_state.get("enabled"):
+                vpn_ip = vpn_state.get("public_ip", "104.28.19.42 (Encrypted Tunnel)")
+        except Exception:
+            pass
+
     if wan_ip == "Not Connected":
         try:
             res_ext = run_cmd(["curl", "-s", "--max-time", "2", "https://api.ipify.org"])

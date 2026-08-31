@@ -193,7 +193,7 @@ fi
 chmod -R 777 /opt/netliberation
 
 # Configure NetworkManager unmanaged rule for LAN AP interface
-echo -e "[keyfile]\nunmanaged-devices=interface-name:wlan0,interface-name:wlan1,interface-name:wlx*" > /etc/NetworkManager/conf.d/netliberation.conf
+echo -e "[keyfile]\nunmanaged-devices=interface-name:wlan0" > /etc/NetworkManager/conf.d/netliberation.conf
 systemctl reload NetworkManager 2>/dev/null || nmcli general reload 2>/dev/null || true
 
 # Configure regulatory domain, disconnect wlan0 from NetworkManager & unblock RF kill-switches

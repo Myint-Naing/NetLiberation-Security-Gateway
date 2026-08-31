@@ -82,8 +82,7 @@ PersistentKeepalive = 25
     except Exception:
         pass
 
-    priv_key = "MOCK_WARP_PRIVATE_KEY_NETLIBERATION="
-    pub_key = "bm8yS3NoRHVtS3lURm4yWWthbkNrejlGNEs="
+    priv_key, pub_key = _generate_wireguard_keypair()
     warp_conf = f"""[Interface]
 PrivateKey = {priv_key}
 Address = 172.16.0.2/32

@@ -57,5 +57,5 @@ class RateLimiter:
             )
         self.requests[client_ip].append(now)
 
-rate_limiter = RateLimiter(requests_limit=60, window_seconds=60)
+rate_limiter = RateLimiter(requests_limit=300, window_seconds=60)
 login_rate_limiter = RateLimiter(requests_limit=5, window_seconds=60)
