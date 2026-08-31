@@ -32,5 +32,6 @@ def test_outline_fetcher():
     assert res["status"] == "success"
     assert "ss_uri" in res
     assert res["ss_uri"].startswith("ss://")
+    assert "NetLiberation" in res["ss_uri"]
     assert "config" in res
     assert "meta" in res
