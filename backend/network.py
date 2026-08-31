@@ -59,7 +59,8 @@ def run_cmd(cmd_args: List[str]) -> subprocess.CompletedProcess:
 
 def get_system_network_interfaces() -> Dict[str, List[str]]:
     eth_ifaces = []
-    wifi_ifaces = []
+    builtin_wifi = []
+    usb_wifi = []
     try:
         res = run_cmd(["ip", "-br", "link"])
         if res.returncode == 0:
@@ -69,12 +70,17 @@ def get_system_network_interfaces() -> Dict[str, List[str]]:
                     name = parts[0]
                     if name in ("lo", "tun0", "wg0"):
                         continue
-                    if name.startswith("wlan") or name.startswith("wl") or name.startswith("wlx"):
-                        wifi_ifaces.append(name)
+                    if name.startswith("wlan") or (name.startswith("wl") and not name.startswith("wlx")):
+                        builtin_wifi.append(name)
+                    elif name.startswith("wlx"):
+                        usb_wifi.append(name)
                     elif name.startswith("eth") or name.startswith("en"):
                         eth_ifaces.append(name)
     except Exception:
         pass
+
+    # Ensure built-in Wi-Fi (wlan0) is prioritized ahead of USB Wi-Fi (wlx*)
+    wifi_ifaces = builtin_wifi + usb_wifi
 
     if not eth_ifaces:
         eth_ifaces = ["eth0"]

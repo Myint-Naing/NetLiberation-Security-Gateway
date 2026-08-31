@@ -225,7 +225,7 @@ CRON_JOB="0 3 * * * PYTHONPATH=/opt/netliberation /opt/netliberation/venv/bin/py
 echo -e "\n${GREEN}================================================================${NC}"
 echo -e "${GREEN}  NetLiberation Security Gateway Installed Successfully!        ${NC}"
 echo -e "${GREEN}================================================================${NC}"
-echo -e "Access Web Management Panel at: ${BLUE}http://192.168.200.254${NC} or ${BLUE}http://localhost${NC}"
+echo -e "Access Web Management Panel at: ${GREEN}http://192.168.200.254${NC} or ${GREEN}http://localhost${NC}"
 echo -e "Default Credentials: Username: ${GREEN}admin${NC} | Password: ${GREEN}admin${NC}"
 echo -e "Default Wi-Fi AP SSID: ${GREEN}NetLiberation${NC} | Passphrase: ${GREEN}Freedom4all${NC}\n"
 
