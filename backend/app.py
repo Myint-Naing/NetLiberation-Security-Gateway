@@ -53,8 +53,10 @@ from backend.vpn import (
     VpnToggleRequest,
     ProfileUploadRequest,
     ProfileImportRawRequest,
+    ProfileSelectRequest,
     get_vpn_state,
     save_vpn_profile,
+    save_vpn_state,
     toggle_vpn
 )
 from backend.warp import generate_cloudflare_warp_key, check_and_renew_warp_key
@@ -241,6 +243,14 @@ async def vpn_profile_raw(req: ProfileImportRawRequest, token: str = Depends(ver
     res = save_vpn_profile(req.protocol, fn, req.content)
     log_event("INFO", f"VPN raw configuration imported for protocol {req.protocol}")
     return res
+
+@app.post("/api/vpn/profile/select")
+async def vpn_profile_select(req: ProfileSelectRequest, token: str = Depends(verify_session)):
+    state = get_vpn_state()
+    state["active_profile"] = req.profile
+    save_vpn_state(state)
+    log_event("INFO", f"Active VPN profile changed to: {req.profile}")
+    return {"status": "success", "active_profile": req.profile}
 
 @app.post("/api/vpn/warp/generate")
 async def vpn_warp_generate(token: str = Depends(verify_session)):

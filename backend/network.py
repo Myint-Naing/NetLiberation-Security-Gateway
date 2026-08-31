@@ -351,43 +351,50 @@ def scan_wifi_networks(iface: str = "wlan0") -> List[Dict[str, Any]]:
     networks = []
     seen_ssids = set()
 
-    # Strategy 1: nmcli
-    try:
-        run_cmd(["nmcli", "dev", "wifi", "rescan"])
-        res = run_cmd(["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY", "dev", "wifi", "list"])
-        if res.returncode == 0 and res.stdout.strip():
-            for line in res.stdout.splitlines():
-                parts = line.split(":")
-                if len(parts) >= 2:
-                    ssid = parts[0].strip().replace("\\:", ":")
-                    signal = f"{parts[1].strip()}%" if parts[1].strip().isdigit() else parts[1].strip()
-                    sec = parts[2].strip() if len(parts) >= 3 and parts[2].strip() else "WPA2"
-                    if ssid and ssid not in seen_ssids:
-                        seen_ssids.add(ssid)
-                        networks.append({"ssid": ssid, "signal": signal, "security": sec})
-    except Exception:
-        pass
+    detected = get_system_network_interfaces()
+    available_wifi = detected["wifi"] if detected["wifi"] else [iface]
 
-    # Strategy 2: iwlist fallback
-    if not networks:
+    for w_iface in available_wifi:
+        # Strategy 1: nmcli
         try:
-            run_cmd(["ip", "link", "set", "dev", iface, "up"])
-            res = run_cmd(["iwlist", iface, "scan"])
-            if res.returncode == 0:
-                current_ssid = ""
-                current_signal = ""
+            run_cmd(["nmcli", "dev", "wifi", "rescan", "ifname", w_iface])
+            res = run_cmd(["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY", "dev", "wifi", "list", "ifname", w_iface])
+            if res.returncode == 0 and res.stdout.strip():
                 for line in res.stdout.splitlines():
-                    line = line.strip()
-                    if "ESSID:" in line:
-                        current_ssid = line.split("ESSID:")[1].replace('"', '')
-                    if "Quality=" in line:
-                        current_signal = line.split("Quality=")[1].split(" ")[0]
-                        if current_ssid and current_ssid not in seen_ssids:
-                            seen_ssids.add(current_ssid)
-                            networks.append({"ssid": current_ssid, "signal": current_signal, "security": "WPA2"})
-                            current_ssid = ""
+                    parts = line.split(":")
+                    if len(parts) >= 2:
+                        ssid = parts[0].strip().replace("\\:", ":")
+                        signal = f"{parts[1].strip()}%" if parts[1].strip().isdigit() else parts[1].strip()
+                        sec = parts[2].strip() if len(parts) >= 3 and parts[2].strip() else "WPA2"
+                        if ssid and ssid not in seen_ssids:
+                            seen_ssids.add(ssid)
+                            networks.append({"ssid": ssid, "signal": signal, "security": sec})
         except Exception:
             pass
+
+        # Strategy 2: iwlist fallback
+        if not networks:
+            try:
+                run_cmd(["ip", "link", "set", "dev", w_iface, "up"])
+                res = run_cmd(["iwlist", w_iface, "scan"])
+                if res.returncode == 0:
+                    current_ssid = ""
+                    current_signal = ""
+                    for line in res.stdout.splitlines():
+                        line = line.strip()
+                        if "ESSID:" in line:
+                            current_ssid = line.split("ESSID:")[1].replace('"', '')
+                        if "Quality=" in line:
+                            current_signal = line.split("Quality=")[1].split(" ")[0]
+                            if current_ssid and current_ssid not in seen_ssids:
+                                seen_ssids.add(current_ssid)
+                                networks.append({"ssid": current_ssid, "signal": current_signal, "security": "WPA2"})
+                                current_ssid = ""
+            except Exception:
+                pass
+
+        if networks:
+            break
 
     if not networks:
         networks = [

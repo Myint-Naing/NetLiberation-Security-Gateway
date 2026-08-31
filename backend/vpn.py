@@ -24,30 +24,48 @@ class ProfileImportRawRequest(BaseModel):
     protocol: str
     content: str
 
+class ProfileSelectRequest(BaseModel):
+    profile: str
+
 def get_vpn_state() -> Dict[str, Any]:
     os.makedirs(CONFIG_DIR, exist_ok=True)
     os.makedirs(PROFILES_DIR, exist_ok=True)
+
+    # Scan saved profiles
+    saved_profiles = []
+    try:
+        saved_profiles = [f for f in os.listdir(PROFILES_DIR) if os.path.isfile(os.path.join(PROFILES_DIR, f))]
+    except Exception:
+        pass
+    if "warp.conf" not in saved_profiles and os.path.exists(os.path.join(CONFIG_DIR, "warp.conf")):
+        saved_profiles.append("warp.conf")
+    if "outline.json" not in saved_profiles and os.path.exists(os.path.join(CONFIG_DIR, "outline.json")):
+        saved_profiles.append("outline.json")
+
+    default_state = {
+        "enabled": False,
+        "active_protocol": "wireguard",
+        "active_profile": saved_profiles[0] if saved_profiles else "warp.conf",
+        "kill_switch": True,
+        "status": "Disconnected",
+        "public_ip": "Direct WAN (Unencrypted)",
+        "handshake_time": "N/A",
+        "tx_bytes": 0,
+        "rx_bytes": 0,
+        "profiles": saved_profiles
+    }
+
     if not os.path.exists(VPN_STATE_FILE):
-        default_state = {
-            "enabled": False,
-            "active_protocol": "wireguard",
-            "active_profile": "warp.conf",
-            "kill_switch": True,
-            "status": "Disconnected",
-            "public_ip": "Direct WAN (Unencrypted)",
-            "handshake_time": "N/A",
-            "tx_bytes": 0,
-            "rx_bytes": 0,
-            "profiles": ["warp.conf", "outline_active.json"]
-        }
         with open(VPN_STATE_FILE, "w") as f:
             json.dump(default_state, f, indent=2)
         return default_state
     try:
         with open(VPN_STATE_FILE, "r") as f:
-            return json.load(f)
+            st = json.load(f)
+            st["profiles"] = saved_profiles
+            return st
     except Exception:
-        return {}
+        return default_state
 
 def save_vpn_state(state: Dict[str, Any]):
     os.makedirs(CONFIG_DIR, exist_ok=True)

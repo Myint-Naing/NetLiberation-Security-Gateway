@@ -250,7 +250,21 @@ async function loadVpnConfig() {
     btn.className = vpn.enabled ? 'btn btn-danger' : 'btn btn-primary';
     document.getElementById('select-vpn-protocol').value = vpn.active_protocol || 'wireguard';
     updateVpnProtocolFields();
+
+    const profileSelect = document.getElementById('select-vpn-profile');
+    if (profileSelect && vpn.profiles) {
+      profileSelect.innerHTML = vpn.profiles.map(p => `<option value="${p}">${p}</option>`).join('');
+      if (vpn.active_profile) profileSelect.value = vpn.active_profile;
+    }
   }
+}
+
+async function changeVpnProfile() {
+  const profileSelect = document.getElementById('select-vpn-profile');
+  if (!profileSelect) return;
+  const profile = profileSelect.value;
+  const res = await apiRequest('/vpn/profile/select', 'POST', { profile });
+  if (res) alert(`Active VPN Profile set to: ${profile}`);
 }
 
 async function toggleVpnMaster() {

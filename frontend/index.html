@@ -234,6 +234,12 @@
             </select>
           </div>
           <div class="form-group">
+            <label class="form-label">Active Profile</label>
+            <select class="glass-select" id="select-vpn-profile" onchange="changeVpnProfile()">
+              <option value="warp.conf">warp.conf (Default)</option>
+            </select>
+          </div>
+          <div class="form-group">
             <label><input type="checkbox" id="chk-killswitch" checked> Enable Kill-Switch (Block WAN if VPN drops)</label>
           </div>
 
