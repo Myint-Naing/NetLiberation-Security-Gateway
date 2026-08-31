@@ -104,10 +104,14 @@ def fetch_active_outline_key() -> Dict[str, Any]:
         with open(OUTLINE_CONF_PATH, "w") as f:
             json.dump(shadowsocks_json, f, indent=2)
 
+        import urllib.parse
+        clean_tag = urllib.parse.unquote(ss_config.get("tag", "Outline Gateway"))
+        country = clean_tag.split()[0] if clean_tag else "US"
+
         meta = {
-            "server_id": ss_config.get("tag", "US-Outline-Key"),
-            "country": "US",
-            "country_flag": "🇺🇸",
+            "server_id": clean_tag,
+            "country": country,
+            "country_flag": "🌐",
             "server": ss_config["server"],
             "port": ss_config["server_port"],
             "method": ss_config["method"],
@@ -117,6 +121,6 @@ def fetch_active_outline_key() -> Dict[str, Any]:
         with open(OUTLINE_META_FILE, "w") as f:
             json.dump(meta, f, indent=2)
 
-        return {"status": "success", "config": shadowsocks_json, "meta": meta}
+        return {"status": "success", "ss_uri": found_ss_uri, "config": shadowsocks_json, "meta": meta}
 
     return {"status": "error", "message": "Failed to parse Outline key"}

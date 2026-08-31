@@ -30,5 +30,7 @@ def test_outline_ss_uri_parser():
 def test_outline_fetcher():
     res = fetch_active_outline_key()
     assert res["status"] == "success"
+    assert "ss_uri" in res
+    assert res["ss_uri"].startswith("ss://")
     assert "config" in res
     assert "meta" in res
